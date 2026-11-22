@@ -475,8 +475,20 @@ final class Monitor: NSObject {
 
     // MARK: grab
 
+    /// Raw TCC answer. "unknown" means macOS has no decision recorded for this exact
+    /// binary, which is what every rebuild of an ad hoc signed app looks like.
+    var inputMonitoringState: String {
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted: return "granted"
+        case kIOHIDAccessTypeDenied: return "denied"
+        default: return "unknown"
+        }
+    }
+
+    /// Only an explicit denial stops us from trying. On "unknown" the open itself is
+    /// attempted; macOS then prompts, or refuses with kIOReturnNotPermitted.
     var inputMonitoringGranted: Bool {
-        IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeDenied
     }
 
     func requestInputMonitoring() {
@@ -628,6 +640,9 @@ final class Monitor: NSObject {
         } else if listening > 0 {
             grab = .listening(listenErr)
             grabDetail = "\(listening) listening" + (failed > 0 ? ", \(failed) refused" : "")
+        } else if failErr == kReturnNotPermitted {
+            grab = .noPermission
+            grabDetail = "macOS refused: Input Monitoring not granted to this build"
         } else {
             grab = .failed(failErr)
             grabDetail = "all \(failed) refused"
@@ -785,8 +800,10 @@ final class Monitor: NSObject {
             if merged != deviceIdents { deviceIdents = merged }
         }
 
-        s.inputMonitoring = inputMonitoringGranted
-        if grab == .noPermission && s.inputMonitoring { rebuildGrab() } else { sweep() }
+        if grab == .noPermission && inputMonitoringState == "granted" { rebuildGrab() } else { sweep() }
+        // Permission counts as present when TCC says granted, or when an open went through.
+        s.inputMonitoring = inputMonitoringState == "granted" || (grab != .noPermission && !opened.isEmpty)
+            || (inputMonitoringGranted && opened.isEmpty)
         s.grab = grab
         s.bindings = bindings
         s.accessibility = !s.bindings.contains { $0.action.kind == .keystroke } || AXIsProcessTrusted()
@@ -831,7 +848,7 @@ final class Monitor: NSObject {
             s.hint = "Usually clears within seconds. If it stays, remove the pairing and pair again."
             return
         }
-        if !s.inputMonitoring {
+        if !s.inputMonitoring || s.grab == .noPermission {
             s.health = .bad; s.diagnosis = "Input Monitoring permission missing"
             s.hint = "Use Grant Input Monitoring and allow Clicktalk. Already listed and on? Each rebuild "
                 + "changes the app's signature: turn it off and on again, then relaunch."
@@ -859,13 +876,15 @@ final class Monitor: NSObject {
             } else {
                 s.hint = "Exclusive grab refused (\(hex(e))). Bindings still fire."
             }
-        case .idle, .noPermission:
+        case .idle:
             if !s.connected {
                 s.health = .good; s.diagnosis = "Sleeping; wakes on press"; s.hint = nil
                 return
             }
             s.health = .warn; s.diagnosis = "Waiting to grab the button"; s.hint = "Should clear in a moment."
             return
+        case .noPermission:
+            return // handled above
         case .seized:
             break
         }
@@ -1100,7 +1119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 menu.addItem(info("Input device: \(h.kind) \(h.idString) via \(h.transport)"))
             }
         }
-        menu.addItem(info("Input Monitoring: \(s.inputMonitoring ? "granted" : "NOT granted")"))
+        menu.addItem(info("Input Monitoring: \(monitor.inputMonitoringState)"
+            + (s.inputMonitoring ? "" : ", NOT usable by this build")))
         let grabText: String
         switch s.grab {
         case .idle: grabText = monitor.grabDetail.isEmpty ? "waiting for the button's identity" : monitor.grabDetail
