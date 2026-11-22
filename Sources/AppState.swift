@@ -283,6 +283,9 @@ final class AppState: ObservableObject {
     /// Runs a binding's action now. Returns an error message, or nil.
     func test(_ id: UUID) -> String? {
         guard let b = binding(id) else { return "binding not found" }
+        guard monitor.isApproved(b) else {
+            return "This binding changed outside Clicktalk. Approve it before testing."
+        }
         let err = monitor.run(b.action)
         monitor.log(err.map { "Test failed: \($0)" } ?? "Tested \(b.action.name)")
         return err
@@ -485,6 +488,7 @@ final class AppState: ObservableObject {
     func primaryFix(for s: Snapshot) -> (title: String, run: () -> Void)? {
         if !s.bluetoothAllowed { return ("Allow Bluetooth", { [weak self] in self?.allowBluetooth() }) }
         if s.deviceName == nil { return ("Choose Button", { [weak self] in self?.pane = .button }) }
+        if !s.deviceApproved { return ("Choose Button Again", { [weak self] in self?.pane = .button }) }
         if !s.paired { return ("Open Bluetooth Settings", { [weak self] in self?.openBluetoothSettings() }) }
         if !s.connected && !monitor.sleeps {
             return ("Reconnect", { [weak self] in self?.monitor.reconnect(manual: true) })
@@ -505,6 +509,12 @@ final class AppState: ObservableObject {
             return ("Set Action", { [weak self] in
                 self?.pane = .bindings
                 self?.editingID = s.bindings.first { $0.action.kind == .none }?.id
+            })
+        }
+        if let id = s.unapproved.first {
+            return ("Review Binding", { [weak self] in
+                self?.pane = .bindings
+                self?.editingID = id
             })
         }
         if !s.accessibility { return ("Allow Accessibility", { [weak self] in self?.allowAccessibility() }) }

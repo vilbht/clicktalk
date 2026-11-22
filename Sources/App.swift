@@ -143,10 +143,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         case .unknown: label = "?"
         case .warn, .bad:
             if !s.bluetoothAllowed { label = "PERM" }
+            else if !s.deviceApproved { label = "BTN" }
             else if !s.btPowerOn || !s.paired || (!s.connected && !monitor.sleeps) { label = "BT" }
             else if s.connected && s.hid.isEmpty { label = "HID" }
             else if !s.inputMonitoring || !s.accessibility || s.grab == .noPermission { label = "PERM" }
-            else if s.bindings.isEmpty || s.bindings.contains(where: { $0.action.kind == .none }) { label = "BIND" }
+            else if s.bindings.isEmpty || !s.unapproved.isEmpty
+                        || s.bindings.contains(where: { $0.action.kind == .none }) { label = "BIND" }
             else { label = "GRAB" }
         }
         let title = NSMutableAttributedString(

@@ -127,6 +127,10 @@ struct Snapshot: Equatable {
     var accessibility = true
     var grab: GrabState = .idle
     var bindings: [ButtonBinding] = []
+    /// Bindings changed outside Clicktalk; they do not run until the owner approves them.
+    var unapproved: [UUID] = []
+    /// False when the chosen button was changed outside Clicktalk.
+    var deviceApproved = true
     var karabinerRunning = false
     var karabinerModifies = false
     var lastPress: (Date, Trigger)?
@@ -139,6 +143,7 @@ struct Snapshot: Equatable {
             && a.btPowerOn == b.btPowerOn && a.paired == b.paired
             && a.connected == b.connected && a.hid == b.hid && a.inputMonitoring == b.inputMonitoring
             && a.accessibility == b.accessibility && a.grab == b.grab && a.bindings == b.bindings
+            && a.unapproved == b.unapproved && a.deviceApproved == b.deviceApproved
             && a.karabinerRunning == b.karabinerRunning && a.karabinerModifies == b.karabinerModifies
             && a.lastPress?.0 == b.lastPress?.0 && a.health == b.health && a.diagnosis == b.diagnosis
             && a.hint == b.hint
@@ -266,10 +271,14 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
 
     // MARK: settings
 
+    let seal = SettingsSeal()
+
+    /// The chosen button's name. Setting it is an owner action in the app, so it is sealed.
     var deviceName: String? {
         get { defaults.string(forKey: "deviceName") }
         set {
             defaults.set(newValue, forKey: "deviceName")
+            if let n = newValue { seal.seal(SettingsSeal.deviceID, Data(n.utf8)) } else { seal.remove(SettingsSeal.deviceID) }
             deviceIdents = []
             hasBaseline = false
             connectedSince = nil
@@ -301,15 +310,41 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         }
     }
 
+    /// The chosen button's name, but only if the owner set it in the app.
+    var trustedDeviceName: String? {
+        guard let n = deviceName, seal.isSealed(SettingsSeal.deviceID, Data(n.utf8)) else { return nil }
+        return n
+    }
+
+    /// Writes come only from the app's own editors. Bindings this write adds or changes
+    /// are sealed as the owner's. Bindings it leaves untouched keep whatever seal they
+    /// had, so editing one binding never approves another that changed outside the app.
     var bindings: [ButtonBinding] {
         get {
             guard let d = defaults.data(forKey: "bindings") else { return [] }
             return (try? JSONDecoder().decode([ButtonBinding].self, from: d)) ?? []
         }
         set {
+            let before = Dictionary(bindings.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             defaults.set(try? JSONEncoder().encode(newValue), forKey: "bindings")
+            for b in newValue where before[b.id] != b {
+                seal.seal(SettingsSeal.id(b), SettingsSeal.data(b))
+            }
+            seal.keepOnly(Set(newValue.map { SettingsSeal.id($0) }), prefix: "binding:")
             refresh()
         }
+    }
+
+    func isApproved(_ b: ButtonBinding) -> Bool {
+        seal.isSealed(SettingsSeal.id(b), SettingsSeal.data(b))
+    }
+
+    /// The owner reviewed a binding that changed outside the app and accepts it.
+    func approve(_ id: UUID) {
+        guard let b = bindings.first(where: { $0.id == id }) else { return }
+        seal.seal(SettingsSeal.id(b), SettingsSeal.data(b))
+        log("Approved binding \(b.trigger.name) → \(b.action.name)")
+        refresh()
     }
 
     static let karabinerConfig = FileManager.default.homeDirectoryForCurrentUser
@@ -347,7 +382,11 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         objectWillChange.send()
         events.insert(Event(date: Date(), text: text), at: 0)
         if events.count > 60 { events.removeLast(events.count - 60) }
+        // Not printed in release builds: standard output can be redirected by whoever
+        // launches the app, and the log names every key press.
+        #if DEBUG
         print("[\(timeFmt.string(from: Date()))] \(text)")
+        #endif
     }
 
     func refreshSoon() {
@@ -391,8 +430,23 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     }
 
     func selectedDevice() -> IOBluetoothDevice? {
-        guard let name = deviceName else { return nil }
+        guard let name = trustedDeviceName else { return nil }
         return pairedDevices().first { ($0.name ?? "") == name }
+    }
+
+    /// Only the owner's chosen Bluetooth button may be opened. The stored HID identity
+    /// narrows which devices the system reports, but it lives in the same editable
+    /// preferences, so each device is checked against the chosen button before opening.
+    private func isChosenButton(_ dev: IOHIDDevice) -> Bool {
+        func prop(_ key: String) -> String { (IOHIDDeviceGetProperty(dev, key as CFString) as? String) ?? "" }
+        guard prop(kIOHIDTransportKey).localizedCaseInsensitiveContains("bluetooth"),
+              let name = trustedDeviceName else { return false }
+        if !name.isEmpty, prop(kIOHIDProductKey).caseInsensitiveCompare(name) == .orderedSame { return true }
+        if let addr = selectedDevice()?.addressString {
+            let a = hexDigits(addr), s = hexDigits(prop(kIOHIDSerialNumberKey))
+            if a.count == 12 && a == s { return true }
+        }
+        return false
     }
 
     private func hidDevices() -> [HIDInfo] {
@@ -578,7 +632,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     func sweep() {
         guard let m = grabManager, inputMonitoringGranted else { return }
         let present = (IOHIDManagerCopyDevices(m) as? Set<IOHIDDevice>) ?? []
-        for d in present {
+        for d in present where isChosenButton(d) {
             if opened[d] == nil {
                 openDevice(d)
             } else if case .failed = opened[d]!, Date().timeIntervalSince(failedAt[d] ?? .distantPast) > 10 {
@@ -586,7 +640,13 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
                 openDevice(d)
             }
         }
-        for d in Array(opened.keys) where !present.contains(d) {
+        for d in Array(opened.keys) where !present.contains(d) || !isChosenButton(d) {
+            if present.contains(d), opened[d] != nil {
+                if case .failed = opened[d]! {} else {
+                    IOHIDDeviceUnscheduleFromRunLoop(d, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+                    IOHIDDeviceClose(d, IOOptionBits(kIOHIDOptionsTypeNone))
+                }
+            }
             opened.removeValue(forKey: d)
             failedAt.removeValue(forKey: d)
         }
@@ -594,7 +654,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     }
 
     private func deviceArrived(_ dev: IOHIDDevice) {
-        guard inputMonitoringGranted, opened[dev] == nil else { return }
+        guard inputMonitoringGranted, opened[dev] == nil, isChosenButton(dev) else { return }
         openDevice(dev)
         summarise()
         refreshSoon()
@@ -712,7 +772,9 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         if let b = bindings.first(where: { $0.trigger == t }) {
             if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
-            if b.action.kind == .keystroke && b.action.hold {
+            if !isApproved(b) {
+                outcome = "\(t.name): not run. This binding changed outside Clicktalk; review it under Bindings."
+            } else if b.action.kind == .keystroke && b.action.hold {
                 if AXIsProcessTrusted() {
                     heldKeys[t] = b.action
                     postKey(b.action, down: true)
@@ -856,12 +918,16 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         s.connected = device?.isConnected() ?? false
         s.hid = hidDevices().filter { matches($0, device: device, name: s.deviceName) }
 
-        // Remember the HID identity the first time we see it so the grab survives sleep.
+        // Remember the button's HID identity so the grab survives sleep. While the button is
+        // connected, what it reports now replaces whatever was stored, so a stale or
+        // planted identity does not linger.
         if !s.hid.isEmpty {
-            let idents = s.hid.map { HIDIdent(vendorID: $0.vendorID, productID: $0.productID, product: $0.product) }
-            var merged = deviceIdents
-            for i in idents where !merged.contains(i) { merged.append(i) }
-            if merged != deviceIdents { deviceIdents = merged }
+            var idents: [HIDIdent] = []
+            for h in s.hid {
+                let i = HIDIdent(vendorID: h.vendorID, productID: h.productID, product: h.product)
+                if !idents.contains(i) { idents.append(i) }
+            }
+            if idents != deviceIdents { deviceIdents = idents }
         }
 
         if grab == .noPermission && inputMonitoringState == "granted" { rebuildGrab() } else { sweep() }
@@ -870,6 +936,8 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             || (inputMonitoringGranted && opened.isEmpty)
         s.grab = grab
         s.bindings = bindings
+        s.unapproved = s.bindings.filter { !isApproved($0) }.map { $0.id }
+        s.deviceApproved = deviceName == nil || trustedDeviceName != nil
         s.accessibility = !s.bindings.contains { $0.action.kind == .keystroke } || AXIsProcessTrusted()
         let procs = processNames()
         s.karabinerRunning = procs.contains {
@@ -896,6 +964,12 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         guard s.deviceName != nil else {
             s.health = .unknown; s.diagnosis = "No button selected"
             s.hint = "Open Clicktalk and choose your button."
+            return
+        }
+        guard s.deviceApproved else {
+            s.health = .warn; s.diagnosis = "Your button choice changed outside Clicktalk"
+            s.hint = "Clicktalk ignores it. Open Clicktalk > Button and choose your button again."
+                + (seal.lastError.map { " " + $0 } ?? "")
             return
         }
         if !s.btPowerOn {
@@ -965,6 +1039,12 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         if s.bindings.contains(where: { $0.action.kind == .none }) {
             s.health = .warn; s.diagnosis = "A binding has no action"
             s.hint = "Open Clicktalk > Bindings and choose what it does."
+            return
+        }
+        if !s.unapproved.isEmpty {
+            s.health = .warn; s.diagnosis = "A binding changed outside Clicktalk"
+            s.hint = "It will not run until you review it. Open Clicktalk > Bindings to approve or remove it."
+                + (seal.lastError.map { " " + $0 } ?? "")
             return
         }
         if !s.accessibility {

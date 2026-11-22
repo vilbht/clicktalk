@@ -158,7 +158,8 @@ Turn on **Open Clicktalk at login** so the button works right after you log in.
 | red | BT | Bluetooth off, button not paired, or disconnected |
 | yellow | HID | Connected, but macOS has not registered it as an input device yet |
 | red | PERM | A permission is missing |
-| yellow | BIND | No binding, or a binding without an action |
+| yellow | BIND | No binding, a binding without an action, or a binding changed outside the app |
+| yellow | BTN | Your button choice changed outside the app; choose it again |
 | yellow | GRAB | Another app, often Karabiner-Elements, holds the button |
 | grey | ? | Not set up |
 
@@ -254,7 +255,7 @@ Keychain Access, open the Clicktalk Dev private key, go to Access Control, and e
 ## Security notes
 
 Clicktalk holds two powerful macOS permissions: Input Monitoring and Accessibility. It protects
-them in three ways:
+them in five ways:
 
 - **Hardened runtime.** `build.sh` signs the app with the hardened runtime, so other programs
   cannot inject code into it to borrow those permissions.
@@ -263,20 +264,19 @@ them in three ways:
   only by its name and this certificate: anyone who can sign with the key can pose as Clicktalk.
 - **Recording only on request.** The shortcut recorder listens only while you record, and
   stops after one shortcut.
+- **Sealed settings.** Any program running under your account can edit Clicktalk's settings
+  file. So when you change a binding or choose your button in the app, Clicktalk seals the new
+  value with a secret key that only it can read from your keychain. A binding that changed
+  outside the app does not run until you approve it under Bindings. A button choice that changed
+  outside the app is ignored until you choose your button again.
+- **Only your button is opened.** Clicktalk opens a device only if it is the Bluetooth button you
+  chose, and release builds do not print key presses anywhere.
 
-### Known limits
+If Clicktalk reports a binding or button choice that changed outside the app and you did not
+change it, remove it and check your Mac for unwanted software.
 
-Clicktalk's settings file can be changed by any program running under your user account. That
-file holds your bindings and the identity of your button. A program without Clicktalk's
-permissions might use that to borrow them:
-
-- **Planted shell command.** It could replace a binding's action with a shell command, which runs
-  as part of Clicktalk on your next press.
-- **Planted device identity.** It could point the stored button identity at your keyboard, so
-  Clicktalk reads that keyboard instead.
-
-Neither has been verified on macOS yet. If you find a binding or button you did not set up,
-remove it and check your Mac for unwanted software.
+After updating from a version without sealed settings, Clicktalk asks once: choose your button
+again under Button, and approve your bindings under Bindings.
 
 ## Limits
 

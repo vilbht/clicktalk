@@ -17,7 +17,7 @@ echo "Compiling…"
 swiftc -O -parse-as-library \
   -target "$(uname -m)-apple-macos13.0" \
   -framework AppKit -framework SwiftUI -framework IOBluetooth -framework IOKit \
-  -framework CoreBluetooth -framework ServiceManagement \
+  -framework CoreBluetooth -framework ServiceManagement -framework CryptoKit -framework Security \
   Sources/*.swift -o "$APP/Contents/MacOS/Clicktalk"
 
 cp Info.plist "$APP/Contents/Info.plist"

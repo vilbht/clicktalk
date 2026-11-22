@@ -83,9 +83,9 @@ struct Sidebar: View {
         case .permissions:
             return (!s.inputMonitoring || !s.accessibility || !s.bluetoothAllowed || s.grab == .noPermission) ? Brand.bad : nil
         case .bindings:
-            return (s.bindings.isEmpty || s.bindings.contains { $0.action.kind == .none }) ? Brand.warn : nil
+            return (s.bindings.isEmpty || !s.unapproved.isEmpty || s.bindings.contains { $0.action.kind == .none }) ? Brand.warn : nil
         case .button:
-            return (s.deviceName == nil || !s.paired) ? Brand.warn : nil
+            return (s.deviceName == nil || !s.deviceApproved || !s.paired) ? Brand.warn : nil
         default:
             return nil
         }
@@ -302,6 +302,11 @@ struct ButtonPage: View {
         let devices = state.pairedDeviceList()
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(title: "Button", subtitle: "Choose the Bluetooth button Clicktalk listens to.")
+            if s.deviceName != nil && !s.deviceApproved {
+                Callout(symbol: "exclamationmark.shield.fill",
+                        text: "Your button choice changed outside Clicktalk, so Clicktalk ignores it. Choose your button again below.",
+                        color: Brand.warn)
+            }
             Card {
                 HStack {
                     SectionTitle(text: "Paired devices")
@@ -421,6 +426,8 @@ struct BindingCard: View {
     let expanded: Bool
     @State private var testError: String?
 
+    private var approved: Bool { state.monitor.isApproved(binding) }
+
     var body: some View {
         Card {
             HStack(spacing: 10) {
@@ -431,12 +438,19 @@ struct BindingCard: View {
                 Spacer()
                 Button("Test") { testError = state.test(binding.id) }
                     .buttonStyle(SecondaryButtonStyle())
-                    .disabled(binding.action.kind == .none)
+                    .disabled(binding.action.kind == .none || !approved)
                 Button(expanded ? "Done" : "Edit") { state.editingID = expanded ? nil : binding.id }
                     .buttonStyle(SecondaryButtonStyle())
                 Button { state.removeBinding(binding.id) } label: { Image(systemName: "trash") }
                     .buttonStyle(SecondaryButtonStyle())
                     .help("Remove this binding")
+            }
+            if !approved {
+                Callout(symbol: "exclamationmark.shield.fill",
+                        text: "This binding changed outside Clicktalk, so it will not run. Check the action above. If you did not set it, remove it with the trash button and check your Mac for unwanted software.",
+                        color: Brand.warn)
+                Button("Approve This Binding") { state.monitor.approve(binding.id) }
+                    .buttonStyle(PrimaryButtonStyle())
             }
             if let e = testError {
                 Text(e).font(.system(size: 11)).foregroundStyle(Brand.bad)
