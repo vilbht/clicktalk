@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-11-22
+
 ### Fixed
 
 - Dragging the EucLink icon from the guide into a System Settings privacy list did nothing,
