@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- On a permission step that said Turned off, the Reset and Try Again row replaced the drag
+  picture, although the instructions pointed to it. Both now show together.
+
 ## [0.4.11] - 2026-11-22
 
 ### Fixed

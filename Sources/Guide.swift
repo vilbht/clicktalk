@@ -202,7 +202,10 @@ struct PermissionStep: View {
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Brand.warn.opacity(0.1)))
-            } else if dragToAdd && state != .granted {
+            }
+            // The drag picture stays visible next to the reset row: the instructions above
+            // point to it in every state.
+            if dragToAdd && state != .granted {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("NOT IN THE LIST? DRAG EUCLINK IN, OR CLICK + AND CHOOSE IT FROM APPLICATIONS")
                         .font(.system(size: 10, weight: .bold)).tracking(0.6).foregroundStyle(.secondary)
@@ -223,7 +226,7 @@ struct PermissionStep: View {
                         }
                     }
                 }
-            } else {
+            } else if onReset == nil {
                 SettingsIllustration(pane: pane)
                     .frame(maxWidth: 460)
                     .frame(maxWidth: .infinity)
