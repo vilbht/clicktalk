@@ -248,8 +248,16 @@ Open it from the menu bar dot with **Open EucLink**.
 
 ## Uninstall, and a clean reinstall
 
-`uninstall.sh` removes the app, its settings, its permission entries and its login item. Your
-Bluetooth pairing and this source folder stay.
+**From the app.** Open EucLink, go to **General** and click **Uninstall…**. After you confirm, it:
+
+1. removes the login item;
+2. deletes your bindings, settings and the keychain key that seals them;
+3. resets its Bluetooth, Input Monitoring and Accessibility permissions;
+4. moves the app to the Trash and quits.
+
+Your Bluetooth pairing stays. If a step cannot finish, EucLink tells you the one thing to do by hand.
+
+**From this folder**, if you built EucLink yourself:
 
 ```bash
 ./uninstall.sh
@@ -261,7 +269,8 @@ To go through the setup guide again as a new user would:
 ./uninstall.sh && ./build.sh
 ```
 
-`./uninstall.sh --all` also deletes the signing certificate described below.
+`./uninstall.sh --all` also deletes the "EucLink Dev" signing certificate described below. The
+in-app uninstall leaves that certificate alone, because only people who build the app have it.
 
 ## For developers
 

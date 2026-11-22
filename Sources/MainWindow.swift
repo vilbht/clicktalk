@@ -602,7 +602,7 @@ struct GeneralPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PageHeader(title: "General", subtitle: "Startup, setup and about.")
+            PageHeader(title: "General", subtitle: "Startup, setup, about and uninstall.")
             Card {
                 Toggle(isOn: Binding(get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) })) {
                     SettingLabel(title: "Open EucLink at login", detail: "Recommended, so the button works right after you log in.")
@@ -637,6 +637,14 @@ struct GeneralPage: View {
                     }
                     Spacer()
                     Button("Quit") { NSApp.terminate(nil) }.buttonStyle(SecondaryButtonStyle())
+                }
+            }
+            Card {
+                HStack {
+                    SettingLabel(title: "Uninstall EucLink",
+                                 detail: "Removes its settings, login item and permissions, and moves the app to the Trash.")
+                    Spacer()
+                    Button("Uninstall…") { Uninstaller.confirmAndRun() }.buttonStyle(SecondaryButtonStyle())
                 }
             }
         }

@@ -16,7 +16,8 @@ import Foundation
 import Security
 
 final class SettingsSeal {
-    private let service = "local.euclink.settings-seal"
+    /// The keychain service of the seal key. The uninstaller deletes it.
+    static let service = "local.euclink.settings-seal"
     private let account = "hmac-key"
     private let storeKey = "settingsSeals"
     private let defaults = UserDefaults.standard
@@ -29,7 +30,7 @@ final class SettingsSeal {
         if let k = cachedKey { return k }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: Self.service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -56,7 +57,7 @@ final class SettingsSeal {
         }
         let add: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: Self.service,
             kSecAttrAccount as String: account,
             kSecAttrLabel as String: "EucLink settings seal",
             kSecValueData as String: bytes,

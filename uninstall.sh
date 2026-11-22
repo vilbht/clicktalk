@@ -30,6 +30,9 @@ remove() {
   rm -rf "${apps[@]}"
   defaults delete "$id" 2>/dev/null
   rm -f "$HOME/Library/Preferences/$id.plist"
+  rm -rf "$HOME/Library/Saved Application State/$id.savedState" \
+    "$HOME/Library/Caches/$id" "$HOME/Library/HTTPStorages/$id"
+  security delete-generic-password -s "$id.settings-seal" >/dev/null 2>&1
   for service in ListenEvent Accessibility BluetoothAlways; do
     tccutil reset "$service" "$id" >/dev/null 2>&1
   done

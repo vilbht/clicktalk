@@ -6,6 +6,12 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Uninstall from inside the app: General > Uninstall… removes the login item, settings, seal
+  key and permissions, and moves the app to the Trash.
+- `uninstall.sh` also deletes the seal key and any saved window state or caches.
+
 ### Changed
 
 - The three README animations run together at full brightness, joined by arrows.

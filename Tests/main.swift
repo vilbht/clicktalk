@@ -1,5 +1,6 @@
-// Tests for keystroke parsing and naming. Built and run by `./build.sh ci`, which
-// compiles this file together with Sources/Keys.swift. No Xcode project needed.
+// Tests for keystroke parsing and naming, and for what the uninstaller removes. Built and
+// run by `./build.sh ci`, which compiles this file with Sources/Keys.swift and
+// Sources/Leftovers.swift. No Xcode project needed.
 
 import AppKit
 
@@ -53,6 +54,17 @@ check(keystrokeName(keyCode: 58, flags: .option, chars: nil) == "⌥", "a lone O
 // Flag conversion round trip.
 let all: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
 check(nsFlags(cgFlags(all)) == all, "flags survive a round trip")
+
+// The uninstaller deletes only EucLink's own files.
+let home = URL(fileURLWithPath: "/Users/someone")
+let paths = Uninstaller.leftoverPaths(home: home, bundleID: "local.euclink").map(\.path)
+check(paths.contains("/Users/someone/Library/Preferences/local.euclink.plist"), "the settings file is removed")
+check(paths.allSatisfy { $0.hasPrefix("/Users/someone/Library/") && $0.contains("local.euclink") },
+      "every removed path is EucLink's own")
+for bad in ["", "..", "../Documents", "a/b", ".hidden"] {
+    check(Uninstaller.leftoverPaths(home: home, bundleID: bad).isEmpty, "bundle id \"\(bad)\" removes nothing")
+}
+check(Uninstaller.permissions == ["ListenEvent", "Accessibility", "BluetoothAlways"], "all three permissions are reset")
 
 print("\(count - failures) of \(count) checks passed")
 exit(failures == 0 ? 0 : 1)
