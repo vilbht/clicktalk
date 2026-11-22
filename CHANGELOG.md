@@ -6,6 +6,14 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-22
+
+### Added
+
+- A disk image next to the zip on each release. It opens to a window that shows where to
+  drag EucLink and how to get past the first-launch block.
+- Every release page starts with the install steps.
+
 ### Changed
 
 - The download steps explain why macOS blocks the first launch, and add the Open Anyway

@@ -86,8 +86,8 @@ EucLink can take hold of it.
 
 ### Download (Apple silicon)
 
-1. Download the zip from the latest [release](../../releases/latest) and unzip it.
-2. Move **EucLink.app** to Applications.
+1. Download the `.dmg` from the latest [release](../../releases/latest) and open it.
+2. Drag **EucLink** into **Applications**. (The release also has a `.zip` of the same app.)
 3. Allow the first launch, with either option below. You only do this once.
 
 **Why macOS blocks it.** Apple only lets an app open without a warning if a paid Apple developer
@@ -315,6 +315,13 @@ Keychain Access, open the EucLink Dev private key, go to Access Control, and emp
 
 `./build.sh ci` builds the app without installing it and runs the tests in `Tests/main.swift`.
 GitHub Actions runs the same command on every push and pull request.
+
+### Making the disk image
+
+`dmg/make.sh EucLink.dmg` packs a built `EucLink.app` into a disk image with the
+drag-to-Applications window. The background is drawn in `dmg/background.html` and saved as
+`dmg/background.png` and `@2x`. CI builds the image on every push, and the release workflow
+attaches it to each release with the install steps from `.github/release-install.md`.
 
 ### Rendering the guide images
 

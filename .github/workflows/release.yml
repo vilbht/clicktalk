@@ -1,5 +1,6 @@
-# Builds EucLink when a version tag such as v0.3.0 is pushed, and attaches the zipped
-# app to a GitHub Release. The release notes are that version's CHANGELOG section.
+# Builds EucLink when a version tag such as v0.3.0 is pushed, and attaches a disk image
+# and a zip of the app to a GitHub Release. The notes are the install steps from
+# .github/release-install.md followed by that version's CHANGELOG section.
 name: Release
 
 on:
@@ -18,14 +19,20 @@ jobs:
         run: ./build.sh ci
       - name: Zip the app
         run: ditto -c -k --keepParent EucLink.app "EucLink-${GITHUB_REF_NAME}-apple-silicon.zip"
+      - name: Make the disk image
+        run: dmg/make.sh "EucLink-${GITHUB_REF_NAME}-apple-silicon.dmg"
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
+          sed "s/VERSION/${GITHUB_REF_NAME}/g" .github/release-install.md > notes.md
+          echo "## What changed" >> notes.md
           awk -v v="$version" '
             index($0, "## [" v "]") == 1 { on = 1; next }
             /^## \[/ { on = 0 }
-            on' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" "EucLink-${GITHUB_REF_NAME}-apple-silicon.zip" \
+            on' CHANGELOG.md >> notes.md
+          gh release create "$GITHUB_REF_NAME" \
+            "EucLink-${GITHUB_REF_NAME}-apple-silicon.dmg" \
+            "EucLink-${GITHUB_REF_NAME}-apple-silicon.zip" \
             --title "EucLink $GITHUB_REF_NAME" --notes-file notes.md

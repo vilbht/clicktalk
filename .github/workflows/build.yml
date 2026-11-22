@@ -16,3 +16,5 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build and test
         run: ./build.sh ci
+      - name: Make the disk image
+        run: dmg/make.sh EucLink.dmg

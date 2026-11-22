@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box}html,body{margin:0}
+body{width:660px;height:400px;font-family:Inter,-apple-system,sans-serif;color:#2b2540;overflow:hidden;
+  background:radial-gradient(420px 300px at 0% 100%,#f1ecff 0,rgba(241,236,255,0) 70%),radial-gradient(380px 260px at 100% 0%,#ffeef6 0,rgba(255,238,246,0) 70%),#fdfcff}
+.logo{position:absolute;left:50%;top:30px;transform:translateX(-50%);width:132px}
+.sub{position:absolute;top:62px;width:100%;text-align:center;font-size:13px;color:#7a7390;font-weight:500;letter-spacing:.2px}
+.rings{position:absolute;left:165px;top:190px}
+.rings i{position:absolute;border-radius:50%;border:1.5px solid;transform:translate(-50%,-50%)}
+.hint{position:absolute;left:50%;top:326px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+  padding:9px 16px 9px 10px;border-radius:999px;background:#fff;box-shadow:0 4px 14px rgba(60,30,120,.08),0 0 0 1px rgba(60,30,120,.06);
+  font-size:12px;white-space:nowrap;color:#4a4460}
+.hint b{font-weight:600;color:#2b2540}
+.hint .ic{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6B5CF5,#E8549E);display:grid;place-items:center}
+.sep{color:#b3acc6;margin:0 1px}
+</style></head><body>
+<img class="logo" src="../docs/images/logo.png">
+<div class="sub">Drag EucLink into Applications to install</div>
+<div class="rings">
+  <i style="width:170px;height:170px;border-color:rgba(142,108,240,.16)"></i>
+  <i style="width:218px;height:218px;border-color:rgba(232,84,158,.10)"></i>
+</div>
+<svg style="position:absolute;left:0;top:0" width="660" height="400">
+  <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#6B5CF5"/><stop offset="1" stop-color="#E8549E"/></linearGradient>
+  <filter id="s" x="-20%" y="-50%" width="140%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#6B5CF5" flood-opacity=".25"/></filter></defs>
+  <g filter="url(#s)" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 184 C 300 164, 360 164, 404 184"/>
+    <path d="M396 169 L406 185 L388 189"/>
+  </g>
+</svg>
+<div class="hint"><div class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5l-8-3z"/></svg></div>
+  First launch blocked?<b>System Settings</b><span class="sep">›</span><b>Privacy &amp; Security</b><span class="sep">›</span><b>Open Anyway</b></div>
+</body></html>
