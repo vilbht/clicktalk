@@ -331,7 +331,11 @@ struct SettingsIllustration: View {
                             row(app, on: false, highlight: false)
                             Divider()
                         }
-                        row("EucLink", on: true, highlight: true)
+                        if showAddBar {
+                            dropSlot
+                        } else {
+                            row("EucLink", on: true, highlight: true)
+                        }
                     }
                     .background(RoundedRectangle(cornerRadius: 8).fill(Brand.card))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Brand.stroke))
@@ -359,6 +363,19 @@ struct SettingsIllustration: View {
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Brand.window))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.primary.opacity(0.12)))
         .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+    }
+
+    /// The empty place in the list where the dragged EucLink icon goes.
+    private var dropSlot: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus.app.fill").foregroundStyle(Brand.accent).font(.system(size: 14))
+            Text("Drop EucLink here").font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
+            Spacer()
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(Brand.accent.opacity(0.06))
+        .overlay(RoundedRectangle(cornerRadius: 6)
+            .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])).padding(2))
     }
 
     private func row(_ name: String, on: Bool, highlight: Bool) -> some View {
