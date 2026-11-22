@@ -6,6 +6,27 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-23
+
+### Added
+
+- An optional update check, off by default. Turn on "Check for updates when EucLink opens"
+  in General or on the guide's last step, or click Check Now. EucLink asks GitHub for the
+  latest version number and, if there is a newer one, shows a message with a button that
+  opens the download page. It never downloads or installs anything by itself.
+- PRIVACY.md, and a Privacy card in General that says what EucLink stores.
+- A Clear button for Activity.
+- Each release lists SHA-256 checksums and carries a GitHub build attestation.
+
+### Changed
+
+- The shortcut recorder stops by itself after ten seconds, shows the countdown, and stops
+  when EucLink is no longer in front.
+- EucLink reads the list of running programs only while it cannot hold the button, to see
+  whether Karabiner-Elements has it. Before, it read the list every few seconds.
+- `./build.sh ci` fails if networking code appears outside the update check, or if the
+  update check names any address other than this project on GitHub.
+
 ## [0.5.0] - 2026-11-22
 
 ### Changed

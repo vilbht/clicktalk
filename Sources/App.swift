@@ -73,6 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             showMain(nil)
         }
         state.resumePermissionRequest()
+        state.updates.onChange = { [weak self] in self?.rebuildMenu() }
+        state.updates.checkAtLaunchIfEnabled()
     }
 
     /// True when macOS started EucLink as a login item rather than the owner opening it.
@@ -204,11 +206,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if s.paired && !s.connected {
             menu.addItem(item("Reconnect Now", #selector(reconnectNow), key: "r"))
         }
+        if case .available(let version) = state.updates.state {
+            menu.addItem(item("EucLink \(version) Is Available…", #selector(openUpdate)))
+        }
         menu.addItem(item("Open EucLink…", #selector(openMain), key: ","))
         menu.addItem(item("Setup Guide…", #selector(openGuide)))
         menu.addItem(.separator())
         menu.addItem(item("Quit EucLink", #selector(quit), key: "q"))
     }
+
+    @objc private func openUpdate() { state.updates.openReleasesPage() }
 
     @objc private func runFix() {
         guard let fix = state.primaryFix(for: monitor.snapshot) else { return }

@@ -577,6 +577,12 @@ struct GuideStepView: View {
                     SettingLabel(title: "Open EucLink at login", detail: "Recommended, so the button works right after you log in.")
                 }
                 .toggleStyle(SwitchStyle())
+                Divider()
+                Toggle(isOn: Binding(get: { ctx.checksForUpdates }, set: { actions.setChecksForUpdates($0) })) {
+                    SettingLabel(title: "Tell me about new versions",
+                                 detail: "Off by default. When on, EucLink asks GitHub for the latest version number when it opens. It sends nothing about you or your Mac, and never installs anything by itself.")
+                }
+                .toggleStyle(SwitchStyle())
             }
         }
         .frame(maxWidth: .infinity)

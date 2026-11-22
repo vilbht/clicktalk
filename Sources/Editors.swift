@@ -166,10 +166,17 @@ struct KindChip: View {
     }
 }
 
+/// Records one shortcut. While it records it sees every key press, so it never stays on:
+/// it stops after the first shortcut, after ten seconds, or as soon as EucLink is no
+/// longer the app in front.
 final class RecorderBox: ObservableObject {
+    static let limit = 10
     @Published var recording = false
     @Published var failed = false
+    @Published var secondsLeft = 0
     private let recorder = KeyRecorder()
+    private var timer: Timer?
+    private var resign: NSObjectProtocol?
 
     func start(_ done: @escaping (Int, CGEventFlags, String) -> Void) {
         recorder.onKey = { [weak self] code, flags, name in
@@ -178,12 +185,29 @@ final class RecorderBox: ObservableObject {
         }
         failed = !recorder.start()
         recording = !failed
+        guard recording else { return }
+        secondsLeft = Self.limit
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.secondsLeft -= 1
+            if self.secondsLeft <= 0 { self.stop() }
+        }
+        resign = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
+                                                        object: nil, queue: .main) { [weak self] _ in self?.stop() }
     }
 
     func stop() {
         recorder.stop()
         recording = false
+        secondsLeft = 0
+        timer?.invalidate()
+        timer = nil
+        if let resign { NotificationCenter.default.removeObserver(resign) }
+        resign = nil
     }
+
+    deinit { stop() }
 }
 
 struct KeystrokeEditor: View {
@@ -200,7 +224,8 @@ struct KeystrokeEditor: View {
                 if box.recording {
                     HStack(spacing: 8) {
                         Circle().fill(Brand.bad).frame(width: 8, height: 8)
-                        Text("Press the shortcut now…").font(.system(size: 13, weight: .medium))
+                        Text("Press the shortcut now. Listening for \(box.secondsLeft) more seconds.")
+                            .font(.system(size: 13, weight: .medium))
                     }
                     Spacer()
                     Button("Cancel") { box.stop() }.buttonStyle(SecondaryButtonStyle())

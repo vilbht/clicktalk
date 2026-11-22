@@ -57,6 +57,10 @@ The maintainer reviews every pull request, usually within a week.
 - Interface text is short, plain and tells the user what to do next.
 - No new dependencies. EucLink uses only Apple's frameworks, which keeps it easy to audit.
 - Never log key presses in release builds.
+- Privacy first. Anything that goes online or reads another app's data must be off by default,
+  say plainly what it does before the user turns it on, and be described in
+  [PRIVACY.md](PRIVACY.md). Networking code lives only in `Sources/Updates.swift`;
+  `./build.sh ci` fails otherwise.
 
 By contributing you agree that your work is released under the [MIT License](LICENSE), and
 you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).

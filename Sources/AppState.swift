@@ -121,6 +121,7 @@ struct GuideContext {
     var testPassed = false
     var lastOutcome: String?
     var launchAtLogin = false
+    var checksForUpdates = false
 }
 
 /// Everything a guide step can do. No-ops by default, which is what the README
@@ -137,6 +138,7 @@ struct GuideActions {
     var resetPermission: (String) -> Void = { _ in }
     var learnAgain: () -> Void = {}
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
+    var setChecksForUpdates: (Bool) -> Void = { _ in }
 }
 
 @MainActor
@@ -159,8 +161,14 @@ final class AppState: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var ticker: AnyCancellable?
 
+    /// The optional update check. Off unless the owner turns it on.
+    let updates = UpdateChecker()
+
     init(monitor: Monitor) {
         self.monitor = monitor
+        updates.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
         step = GuideStep(rawValue: UserDefaults.standard.integer(forKey: "guideStep")) ?? .welcome
         monitor.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -518,6 +526,7 @@ final class AppState: ObservableObject {
             }
         }
         c.launchAtLogin = launchAtLogin
+        c.checksForUpdates = updates.checksAtLaunch
         return c
     }
 
@@ -533,7 +542,8 @@ final class AppState: ObservableObject {
             relaunch: { [weak self] in self?.relaunch() },
             resetPermission: { [weak self] s in self?.resetPermissionAndRelaunch([s]) },
             learnAgain: { [weak self] in self?.startGuideLearning() },
-            setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) })
+            setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) },
+            setChecksForUpdates: { [weak self] on in self?.updates.checksAtLaunch = on })
     }
 
     func canContinue(_ c: GuideContext) -> Bool {

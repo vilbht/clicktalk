@@ -51,10 +51,24 @@ else
 fi
 
 if [ "$MODE" = "ci" ]; then
+  # Privacy: only the optional update check may go online, and only to this project on
+  # GitHub. Networking code in any other file, or another address in that file, fails here.
+  echo "Checking that only the update check can go online…"
+  if grep -nE 'URLSession|URLRequest|NWConnection|NSURLConnection|CFNetwork|CFSocket|CFStream|WKWebView|import Network' \
+       Sources/*.swift | grep -v '^Sources/Updates.swift:'; then
+    echo "Networking code outside Sources/Updates.swift. See PRIVACY.md."
+    exit 1
+  fi
+  if grep -oE 'https?://[^"]+' Sources/Updates.swift \
+       | grep -vE '^https://(api\.github\.com/repos|github\.com)/vilbht/euclink/'; then
+    echo "Sources/Updates.swift names an address other than this project on GitHub."
+    exit 1
+  fi
+
   echo "Compiling tests…"
   TESTS="$(mktemp -d)"
   swiftc -target "$(uname -m)-apple-macos13.0" -framework AppKit \
-    Sources/Keys.swift Sources/Leftovers.swift Tests/main.swift -o "$TESTS/tests"
+    Sources/Keys.swift Sources/Leftovers.swift Sources/Version.swift Tests/main.swift -o "$TESTS/tests"
   "$TESTS/tests"
   rm -rf "$TESTS"
 

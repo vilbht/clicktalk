@@ -393,6 +393,12 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         #endif
     }
 
+    /// Empties the activity log. It only ever lives in memory.
+    func clearEvents() {
+        objectWillChange.send()
+        events.removeAll()
+    }
+
     func refreshSoon() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.refresh() }
     }
@@ -980,7 +986,10 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         s.deviceApproved = deviceName == nil || trustedDeviceName != nil
         if s.deviceApproved && s.unapproved.isEmpty { seal.clearKeyWasReplaced() }
         s.accessibility = !s.bindings.contains { $0.action.kind == .keystroke } || AXIsProcessTrusted()
-        let procs = processNames()
+        // The list of running programs is read only while the button cannot be held, which is
+        // when Karabiner-Elements may be the reason. While EucLink holds the button it is not
+        // read at all.
+        let procs = grab == .seized ? [] : processNames()
         s.karabinerRunning = procs.contains {
             $0.hasSuffix("/karabiner_grabber") || $0.hasSuffix("/Karabiner-Core-Service")
         }

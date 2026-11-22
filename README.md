@@ -251,8 +251,9 @@ only when you click its **Allow** button.
 | Input Monitoring | 4 | To read your button and keep its own key, often Volume Up, from reaching other apps | Always |
 | Accessibility | 7 | To press keys for you, such as fn+Space for your dictation app | Only when the button presses keys |
 
-EucLink never asks for screen recording, the microphone, the camera or full disk access, and
-it makes no network connections.
+EucLink never asks for screen recording, the microphone, the camera or full disk access. It
+goes online for one thing only, an optional update check that is off by default. See
+[Privacy](#privacy).
 
 **Passwords.** EucLink never asks for a password. macOS itself asks for your Mac password or
 Touch ID in two places: when you click **Open Anyway** for the first launch, and when you change
@@ -412,7 +413,8 @@ renders with a window frame added.
 - Keystrokes are posted with CGEvent, modifiers as real key presses, which is what push-to-talk apps
   watch for. This is why Accessibility is needed.
 - SwiftUI for the window and guide, AppKit for the menu bar item. Settings live in
-  `~/Library/Preferences/local.euclink.plist`. Nothing leaves the Mac.
+  `~/Library/Preferences/local.euclink.plist`. The only network code is the optional update
+  check in `Sources/Updates.swift`, and `./build.sh ci` fails if any appears elsewhere.
 
 ## Security notes
 
@@ -441,6 +443,36 @@ After each update, EucLink asks once: choose your button again under Button, and
 bindings under Bindings. macOS lets only the exact build that created the sealing key read it,
 and without an Apple developer signature every update is a different build. EucLink never asks
 for your keychain password; it starts a new key and has you confirm your settings instead.
+
+## Privacy
+
+EucLink is built privacy first. The full policy is in [PRIVACY.md](PRIVACY.md).
+
+- No accounts, analytics or telemetry.
+- It reads one device, the button you chose, and never your keyboard. The shortcut recorder
+  is the one exception: it listens for at most ten seconds, only while you record.
+- Your settings stay on your Mac. Activity is kept in memory and gone when you quit.
+- It goes online only for the update check, and only if you turn it on.
+
+## Updates
+
+EucLink does not update itself. In **General** you can:
+
+- click **Check Now** to ask GitHub whether a newer version exists;
+- turn on **Check for updates when EucLink opens**, which is off by default;
+- click **See Latest Release on GitHub** to look in your browser instead.
+
+When a newer version exists, EucLink shows a message with a button that opens the download
+page. You install it like the first time. macOS treats each update as a new app, so allow
+Input Monitoring and Accessibility again, then choose your button and approve your binding.
+
+To get an email for each new version instead, click **Watch > Custom > Releases** on GitHub.
+
+Each release page lists SHA-256 checksums. To check a download:
+
+```bash
+shasum -a 256 ~/Downloads/EucLink-*.dmg
+```
 
 ## Limits
 

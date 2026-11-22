@@ -578,8 +578,11 @@ struct ActivityPage: View {
         let events = state.monitor.events
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
-                PageHeader(title: "Activity", subtitle: "Connections, presses and what they did. Newest first.")
+                PageHeader(title: "Activity", subtitle: "Connections, presses and what they did. Newest first. Kept in memory only, and gone when you quit.")
                 Spacer()
+                Button("Clear") { state.monitor.clearEvents() }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .disabled(events.isEmpty)
                 Button("Copy Log") {
                     let text = events.map { "\(timeFmt.string(from: $0.date))  \($0.text)" }.joined(separator: "\n")
                     NSPasteboard.general.clearContents()
@@ -611,6 +614,27 @@ struct ActivityPage: View {
 struct GeneralPage: View {
     @ObservedObject var state: AppState
 
+    private var updateTitle: String {
+        switch state.updates.state {
+        case .available(let v): return "EucLink \(v) is available"
+        case .checking: return "Checking for updates…"
+        case .upToDate: return "EucLink \(state.version) is up to date"
+        case .failed: return "Could not check for updates"
+        case .unknown: return "You have EucLink \(state.version)"
+        }
+    }
+
+    private var updateDetail: String {
+        switch state.updates.state {
+        case .available: return "You have \(state.version). The download page opens in your browser; EucLink does not install it for you."
+        case .checking: return "Asking GitHub for the latest version number."
+        case .failed(let why): return why
+        case .upToDate, .unknown:
+            if let d = state.updates.lastChecked { return "Last checked \(timeFmt.string(from: d))." }
+            return "Not checked yet. EucLink only checks when you ask."
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(title: "General", subtitle: "Startup, setup, about and uninstall.")
@@ -637,6 +661,34 @@ struct GeneralPage: View {
                     Spacer()
                     Button("Open Guide") { state.restartGuide() }.buttonStyle(SecondaryButtonStyle())
                 }
+            }
+            Card {
+                HStack(alignment: .center, spacing: 12) {
+                    SettingLabel(title: updateTitle, detail: updateDetail)
+                    Spacer()
+                    if case .available = state.updates.state {
+                        Button("Open Download Page") { state.updates.openReleasesPage() }.buttonStyle(PrimaryButtonStyle())
+                    }
+                    Button("Check Now") { state.updates.check() }.buttonStyle(SecondaryButtonStyle())
+                        .disabled(state.updates.state == .checking)
+                }
+                Divider()
+                Toggle(isOn: Binding(get: { state.updates.checksAtLaunch }, set: { state.updates.checksAtLaunch = $0 })) {
+                    SettingLabel(title: "Check for updates when EucLink opens",
+                                 detail: "Off by default. Asks GitHub for the latest version number, at most once every six hours. Sends nothing about you or your Mac, and never installs anything by itself.")
+                }
+                .toggleStyle(SwitchStyle())
+                Button("See Latest Release on GitHub") { state.updates.openReleasesPage() }.buttonStyle(TextLinkStyle())
+            }
+            Card {
+                SectionTitle(text: "Privacy")
+                Text("EucLink keeps three things, on this Mac only: your bindings, your button's name and ID, and a few setup switches. Activity is held in memory and gone when you quit. EucLink reads only the button you chose, never your keyboard. It goes online only for the update check above, and only if you turn it on or click Check Now.")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Read the Privacy Policy") {
+                    if let u = URL(string: "https://github.com/vilbht/euclink/blob/main/PRIVACY.md") { NSWorkspace.shared.open(u) }
+                }
+                .buttonStyle(TextLinkStyle())
             }
             Card {
                 HStack(spacing: 14) {

@@ -18,7 +18,7 @@ body:
     id: activity
     attributes:
       label: Activity log
-      description: From EucLink > Activity. Remove anything you do not want to share.
+      description: From EucLink > Activity > Copy Log. It lists device names and key names. Remove anything you do not want to share.
       render: text
   - type: input
     id: button

@@ -1,6 +1,6 @@
-// Tests for keystroke parsing and naming, and for what the uninstaller removes. Built and
+// Tests for keystroke parsing and naming, what the uninstaller removes, and version numbers. Built and
 // run by `./build.sh ci`, which compiles this file with Sources/Keys.swift and
-// Sources/Leftovers.swift. No Xcode project needed.
+// Sources/Leftovers.swift and Sources/Version.swift. No Xcode project needed.
 
 import AppKit
 
@@ -72,6 +72,24 @@ check(!PermissionReset.isAllowed(service: "All", bundleID: "local.euclink"), "re
 check(!PermissionReset.isAllowed(service: "Camera", bundleID: "local.euclink"), "other permissions are refused")
 check(!PermissionReset.isAllowed(service: "ListenEvent", bundleID: ""), "an empty bundle id is refused")
 check(!PermissionReset.run("All", bundleID: "local.euclink"), "a refused reset never runs tccutil")
+
+// Version numbers for the optional update check.
+check(Version.parse("v0.6.0") ?? [] == [0, 6, 0], "a v-prefixed tag parses")
+check(Version.parse("0.4.10") ?? [] == [0, 4, 10], "a plain version parses")
+for bad in ["", "v", "1..2", "1.2-beta", "latest", "-1.0", "1.2.3.4.5", "٣.١"] {
+    check(Version.parse(bad) == nil, "\"\(bad)\" is not a version")
+}
+check(Version.isNewer("0.4.10", than: "0.4.9"), "0.4.10 is newer than 0.4.9")
+check(Version.isNewer("v0.6.0", than: "0.5.0"), "0.6.0 is newer than 0.5.0")
+check(Version.isNewer("1.0", than: "0.9.9"), "1.0 is newer than 0.9.9")
+check(!Version.isNewer("0.5.0", than: "0.5.0"), "the same version is not newer")
+check(!Version.isNewer("0.5", than: "0.5.0"), "0.5 equals 0.5.0")
+check(!Version.isNewer("0.4.9", than: "0.5.0"), "an older version is not newer")
+check(!Version.isNewer("9.9.9-beta", than: "0.5.0"), "a pre-release tag is never offered")
+check(Version.latestTag(fromReleaseJSON: Data("{\"tag_name\":\"v0.6.0\",\"name\":\"x\"}".utf8)) == "v0.6.0",
+      "the tag is read from GitHub's reply")
+check(Version.latestTag(fromReleaseJSON: Data("{\"tag_name\":\"nightly\"}".utf8)) == nil, "an odd tag is ignored")
+check(Version.latestTag(fromReleaseJSON: Data("not json".utf8)) == nil, "a broken reply is ignored")
 
 print("\(count - failures) of \(count) checks passed")
 exit(failures == 0 ? 0 : 1)
