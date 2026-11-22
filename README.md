@@ -170,8 +170,7 @@ Select it. Here the remote is **BT1818**; the names of other paired devices are 
 
 1. Click **Allow Input Monitoring**. System Settings opens on the Input Monitoring list.
 2. Find **EucLink** in the list. **Not there?** Drag the dashed EucLink icon from the guide into
-   the list. Or click **+** below the list, press **Cmd+Shift+A** to jump to Applications, choose
-   EucLink and click **Open**.
+   the list. See [If EucLink is not in the list](#if-euclink-is-not-in-the-list).
 3. Turn EucLink on. EucLink restarts by itself to use it, and reopens on the same step.
 4. If macOS asks to quit and reopen EucLink, either choice works.
 5. Still says **Turned off** although the switch is on? Click **Reset and Try Again** in the guide.
@@ -211,7 +210,7 @@ Only needed when the button presses keys. For other actions the step says it is 
 
 1. Click **Allow Accessibility**. System Settings opens on the Accessibility list.
 2. Find **EucLink** in the list. **Not there?** Drag the dashed EucLink icon from the guide into
-   the list, or add it with **+** as in step 4.
+   the list, as in [this animation](#if-euclink-is-not-in-the-list).
 3. Turn EucLink on. This one works without a restart.
 
 <p align="center"><img src="docs/images/step-7-accessibility.png" width="480" alt="Allow Accessibility"></p>
@@ -229,6 +228,45 @@ check that the recorded shortcut matches the target app's global shortcut.
 Turn on **Open EucLink at login** so the button works right after you log in.
 
 <p align="center"><img src="docs/images/step-9-done.png" width="480" alt="Setup done"></p>
+
+## Permissions
+
+EucLink asks for three macOS permissions. The guide asks for each one on its own step, and
+only when you click its **Allow** button.
+
+| Permission | Guide step | Why EucLink needs it | Needed |
+|---|---|---|---|
+| Bluetooth | 2 | To see whether your button is connected or asleep | Always |
+| Input Monitoring | 4 | To read your button and keep its own key, often Volume Up, from reaching other apps | Always |
+| Accessibility | 7 | To press keys for you, such as fn+Space for your dictation app | Only when the button presses keys |
+
+EucLink never asks for screen recording, the microphone, the camera or full disk access, and
+it makes no network connections.
+
+### If EucLink is not in the list
+
+macOS does not always add EucLink to the Input Monitoring or Accessibility list by itself.
+Drag it in:
+
+<p align="center"><img src="docs/images/drag-to-add.gif" width="560" alt="Animation: a hand cursor drags the EucLink icon from the guide into the Input Monitoring list in System Settings, then turns its switch on"></p>
+
+1. Keep the guide and System Settings side by side.
+2. Drag the dashed EucLink icon from the guide into the list.
+3. Turn EucLink on.
+
+Or click **+** below the list, press **Cmd+Shift+A** to jump to Applications, choose EucLink
+and click **Open**.
+
+### If the switch is on but EucLink says "Turned off"
+
+macOS ties each permission to one exact build of the app. After you switch between a
+downloaded EucLink and one you built, the switch you see can belong to the other copy.
+
+1. Click **Reset and Try Again** in the guide, or **Reset Permissions and Relaunch** under
+   EucLink > Permissions. EucLink clears its entry and restarts.
+2. Click **Allow** again and turn EucLink on.
+3. Still on after the reset? Select EucLink in the System Settings list, click **−**, and
+   allow it again. EucLink tells you when this is needed.
 
 ## Everyday use
 

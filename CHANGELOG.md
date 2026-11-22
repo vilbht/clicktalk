@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A Permissions section in the README: why each permission is needed and on which step, an
+  animation of dragging EucLink into the list, and what to do when a switch is on but ignored.
+
 ## [0.4.8] - 2026-11-22
 
 ### Fixed
