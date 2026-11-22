@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-11-22
+
 ### Changed
 
 - Opening EucLink yourself now shows its window. Before, it only appeared in the menu bar,
@@ -13,16 +15,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ### Fixed
 
-- On a permission step that said Turned off, the Reset and Try Again row replaced the drag
-  picture, although the instructions pointed to it. Both now show together.
-
-## [0.4.11] - 2026-11-22
-
-### Fixed
-
 - After updating in place, macOS asked for the login keychain password so the new build could
   read the key that seals your settings. EucLink no longer triggers that prompt. It starts a
   new key instead, and asks you once to choose your button and approve your bindings again.
+- On a permission step that said Turned off, the Reset and Try Again row replaced the drag
+  picture, although the instructions pointed to it. Both now show together.
 
 ## [0.4.10] - 2026-11-22
 
