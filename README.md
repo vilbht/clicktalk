@@ -93,11 +93,15 @@ reports the step done. You can close the guide and pick up later from the menu b
 The guide lists what you need. If Clicktalk is not in Applications, it offers to copy itself there
 first. macOS ties permissions to the app's location, so do this before granting anything.
 
+<p align="center"><img src="docs/images/step-1-welcome.png" width="480" alt="Welcome"></p>
+
 
 ### 2. Allow Bluetooth
 
 Click **Allow Bluetooth**, then **Allow** in the macOS prompt. Clicktalk only uses this to see
 whether your button is connected or asleep.
+
+<p align="center"><img src="docs/images/step-2-bluetooth.png" width="480" alt="Allow Bluetooth"></p>
 
 
 ### 3. Choose your button
@@ -123,6 +127,8 @@ When the step is done, a green note says that Clicktalk now holds your button.
 
 Press the button once. Clicktalk learns which key the button sends, for example Volume Up, and shows
 its name. Every clicker is different, so this replaces any device list.
+
+<p align="center"><img src="docs/images/step-5-learn.png" width="480" alt="Press your button"></p>
 
 
 ### 6. Choose what it does
