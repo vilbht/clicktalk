@@ -48,6 +48,10 @@ A clicker with several buttons gets one binding per button.
 Keystroke actions need the **Accessibility** permission. Clicktalk asks for it the first
 time you save one.
 
+**After every rebuild**, macOS sees a new signature and silently drops both permissions even
+though the privacy panes still show Clicktalk as on. Turn the entry off and on again, then
+relaunch. Users who build once never see this; it only bites while you are changing the code.
+
 ## Recipes
 
 | Goal | Binding |

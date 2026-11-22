@@ -732,7 +732,8 @@ final class Monitor: NSObject {
         }
         if !s.inputMonitoring {
             s.health = .bad; s.diagnosis = "Input Monitoring permission missing"
-            s.hint = "Use Grant Input Monitoring, then allow Clicktalk in the privacy pane."
+            s.hint = "Use Grant Input Monitoring and allow Clicktalk. Already listed and on? Each rebuild "
+                + "changes the app's signature: turn it off and on again, then relaunch."
             return
         }
         switch s.grab {
