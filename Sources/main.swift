@@ -751,11 +751,38 @@ final class Monitor: NSObject {
         }
     }
 
+    /// Posts the keystroke the way a keyboard would: each modifier as its own key
+    /// event, then the key, in reverse on release. Apps that watch raw events for a
+    /// hotkey (push-to-talk tools do) need to see the modifier keys themselves, not
+    /// just a flag on the main key. fn in particular is only ever seen as its own key.
     private func postKey(_ a: Action, down: Bool) {
         let src = CGEventSource(stateID: .hidSystemState)
-        guard let e = CGEvent(keyboardEventSource: src, virtualKey: CGKeyCode(a.keyCode), keyDown: down) else { return }
-        e.flags = CGEventFlags(rawValue: a.flags)
-        e.post(tap: .cghidEventTap)
+        let wanted = CGEventFlags(rawValue: a.flags)
+        let modifiers: [(CGEventFlags, CGKeyCode)] = [
+            (.maskControl, 59), (.maskAlternate, 58), (.maskShift, 56), (.maskCommand, 55), (.maskSecondaryFn, 63),
+        ].filter { wanted.contains($0.0) }
+
+        func post(_ code: CGKeyCode, _ isDown: Bool, _ flags: CGEventFlags) {
+            guard let e = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: isDown) else { return }
+            e.flags = flags
+            e.post(tap: .cghidEventTap)
+        }
+
+        if down {
+            var flags: CGEventFlags = []
+            for (flag, code) in modifiers {
+                flags.insert(flag)
+                post(code, true, flags)
+            }
+            post(CGKeyCode(a.keyCode), true, flags)
+        } else {
+            var flags = wanted
+            post(CGKeyCode(a.keyCode), false, flags)
+            for (flag, code) in modifiers.reversed() {
+                flags.remove(flag)
+                post(code, false, flags)
+            }
+        }
     }
 
     private func shell(_ path: String, _ args: [String]) -> String? {
