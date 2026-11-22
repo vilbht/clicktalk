@@ -95,6 +95,9 @@ struct GuideContext {
     var trigger: Trigger?
     var needsAccessibility = true
     var accessibility: PermState = .notDetermined
+    /// True once Allow Accessibility was clicked in this run, so a reset is only offered
+    /// after the normal way has had its chance.
+    var accessibilityTried = false
     var testPassed = false
     var lastOutcome: String?
     var launchAtLogin = false
@@ -111,6 +114,7 @@ struct GuideActions {
     var allowAccessibility: () -> Void = {}
     var openPrivacyPane: (String) -> Void = { _ in }
     var relaunch: () -> Void = {}
+    var resetPermission: (String) -> Void = { _ in }
     var learnAgain: () -> Void = {}
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
 }
@@ -126,6 +130,7 @@ final class AppState: ObservableObject {
     @Published var editingID: UUID?
     @Published var testStartedAt: Date?
     @Published var moveError: String?
+    @Published var accessibilityTried = false
 
     var showMain: (Pane?) -> Void = { _ in }
     var showGuide: () -> Void = {}
@@ -196,6 +201,7 @@ final class AppState: ObservableObject {
     }
 
     func allowAccessibility() {
+        accessibilityTried = true
         monitor.requestAccessibility()
         if accessibilityState != .granted {
             Task { @MainActor in
@@ -226,6 +232,15 @@ final class AppState: ObservableObject {
     }
 
     func relaunch() { launchAndQuit(Bundle.main.bundlePath) }
+
+    /// Clears a permission entry that may belong to another copy of EucLink, then
+    /// relaunches so this copy can ask again. The guide reopens on the same step.
+    func resetPermissionAndRelaunch(_ services: [String]) {
+        let id = Bundle.main.bundleIdentifier ?? "local.euclink"
+        for s in services { PermissionReset.run(s, bundleID: id) }
+        monitor.log("Reset \(services.joined(separator: ", ")) and relaunched")
+        relaunch()
+    }
 
     /// Copies the app to /Applications and relaunches from there. macOS ties the
     /// permissions to the app, so it is best done before granting any.
@@ -395,6 +410,7 @@ final class AppState: ObservableObject {
         c.isLearning = monitor.learning
         c.trigger = guideBinding?.trigger
         c.accessibility = accessibilityState
+        c.accessibilityTried = accessibilityTried
         if let start = testStartedAt {
             // Passed once any bound action ran after the step opened, whatever came after it.
             if let f = monitor.lastFired, f.0 > start {
@@ -418,6 +434,7 @@ final class AppState: ObservableObject {
             allowAccessibility: { [weak self] in self?.allowAccessibility() },
             openPrivacyPane: { [weak self] anchor in self?.openPrivacyPane(anchor) },
             relaunch: { [weak self] in self?.relaunch() },
+            resetPermission: { [weak self] s in self?.resetPermissionAndRelaunch([s]) },
             learnAgain: { [weak self] in self?.startGuideLearning() },
             setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) })
     }

@@ -66,5 +66,12 @@ for bad in ["", "..", "../Documents", "a/b", ".hidden"] {
 }
 check(Uninstaller.permissions == ["ListenEvent", "Accessibility", "BluetoothAlways"], "all three permissions are reset")
 
+// The permission reset only touches EucLink's own three permissions.
+check(PermissionReset.isAllowed(service: "ListenEvent", bundleID: "local.euclink"), "Input Monitoring can be reset")
+check(!PermissionReset.isAllowed(service: "All", bundleID: "local.euclink"), "resetting every permission is refused")
+check(!PermissionReset.isAllowed(service: "Camera", bundleID: "local.euclink"), "other permissions are refused")
+check(!PermissionReset.isAllowed(service: "ListenEvent", bundleID: ""), "an empty bundle id is refused")
+check(!PermissionReset.run("All", bundleID: "local.euclink"), "a refused reset never runs tccutil")
+
 print("\(count - failures) of \(count) checks passed")
 exit(failures == 0 ? 0 : 1)

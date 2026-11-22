@@ -38,17 +38,8 @@ extension Uninstaller {
             problems.append("Delete \"EucLink settings seal\" in Keychain Access.")
         }
 
-        for service in permissions {
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-            p.arguments = ["reset", service, bundleID]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
-            var ok = false
-            do { try p.run(); p.waitUntilExit(); ok = p.terminationStatus == 0 } catch {}
-            if !ok {
-                problems.append("Turn EucLink off in System Settings > Privacy & Security (\(service)).")
-            }
+        for service in permissions where !PermissionReset.run(service, bundleID: bundleID) {
+            problems.append("Turn EucLink off in System Settings > Privacy & Security (\(service)).")
         }
 
         do {

@@ -6,6 +6,13 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Reset and Try Again on the guide's permission steps. When macOS shows EucLink as allowed
+  but ignores it, because the switch belongs to another copy of the app, one click clears the
+  entry and restarts EucLink so it can ask again.
+- Permissions page: Reset Permissions and Relaunch replaces the three Terminal commands.
+
 ## [0.4.1] - 2026-11-22
 
 ### Added

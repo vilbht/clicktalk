@@ -1002,7 +1002,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             s.health = .bad; s.diagnosis = "Could not open the button (\(hex(e)))"
             if e == kReturnNotPermitted {
                 s.hint = "macOS refused this process. Quit EucLink and relaunch; Input Monitoring "
-                    + "applies at launch. If it persists: tccutil reset ListenEvent local.euclink"
+                    + "applies at launch. If it persists, open Permissions and click Reset Permissions and Relaunch."
             } else if e == kReturnExclusiveAccess {
                 s.hint = "Another app holds every interface. Quit Karabiner or the other app and relaunch."
             } else {

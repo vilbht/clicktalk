@@ -527,13 +527,14 @@ struct PermissionsPage: View {
             }
             Card {
                 SectionTitle(text: "Still not working?")
-                Text("macOS ties permissions to the exact app build. After an update it can show EucLink as allowed while ignoring it. Turn the switch off and on, then relaunch. If that fails, reset EucLink's entries and allow them again:")
+                Text("macOS ties permissions to the exact app build. After an update, or after switching between a download and your own build, it can show EucLink as allowed while ignoring it. Reset clears EucLink's entries and restarts it. Then allow each one again above.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                CommandRow(command: "tccutil reset ListenEvent local.euclink")
-                CommandRow(command: "tccutil reset Accessibility local.euclink")
-                CommandRow(command: "tccutil reset BluetoothAlways local.euclink")
-                Button("Relaunch EucLink") { state.relaunch() }.buttonStyle(SecondaryButtonStyle())
+                HStack(spacing: 10) {
+                    Button("Reset Permissions and Relaunch") { state.resetPermissionAndRelaunch(Uninstaller.permissions) }
+                        .buttonStyle(SecondaryButtonStyle())
+                    Button("Relaunch Only") { state.relaunch() }.buttonStyle(TextLinkStyle())
+                }
             }
         }
     }

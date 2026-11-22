@@ -260,7 +260,7 @@ Open it from the menu bar dot with **Open EucLink**.
 |---|---|
 | The button fires, but the target app does nothing | The shortcut is not the app's global shortcut, or another app uses the same one. Check the target app's settings and record it again. |
 | Dot shows `GRAB` | Another app holds the button. In Karabiner-Elements > Devices, turn off Modify events for it. |
-| Dot shows `PERM` after you allowed everything | Open EucLink > Permissions, turn the switch off and on in System Settings, then click Relaunch. |
+| Dot shows `PERM`, or a step says "Turned off", after you allowed everything | The switch belongs to another copy of EucLink. Click **Reset and Try Again** in the guide, or **Reset Permissions and Relaunch** under Permissions, then allow it again. |
 | Red `BT` while the button still works | The button sleeps between presses. Turn on "Button sleeps between presses" under Button. |
 | The first press after a while does nothing | The button was asleep and that press woke it. Press again. |
 

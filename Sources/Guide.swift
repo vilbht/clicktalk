@@ -173,6 +173,8 @@ struct PermissionStep: View {
     let state: PermState
     let actions: GuideActions
     let onAllow: () -> Void
+    /// Set when the switch may belong to another copy of EucLink.
+    var onReset: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -188,10 +190,22 @@ struct PermissionStep: View {
                 Spacer()
                 PermStatus(state: state)
             }
-            SettingsIllustration(pane: pane)
-                .frame(maxWidth: 460)
-                .frame(maxWidth: .infinity)
-                .opacity(state == .granted ? 0.5 : 1)
+            if let onReset {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill").foregroundStyle(Brand.warn)
+                    Text("Already on in System Settings? That switch can belong to another copy of EucLink. Reset clears it and restarts EucLink, then click Allow \(pane) again.")
+                        .font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Reset and Try Again", action: onReset).buttonStyle(SecondaryButtonStyle())
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Brand.warn.opacity(0.1)))
+            } else {
+                SettingsIllustration(pane: pane)
+                    .frame(maxWidth: 460)
+                    .frame(maxWidth: .infinity)
+                    .opacity(state == .granted ? 0.5 : 1)
+            }
         }
     }
 }
@@ -214,7 +228,8 @@ struct GuideStepView: View {
                 instructions: ["Click Allow Bluetooth below.",
                                "Choose Allow in the prompt macOS shows.",
                                "Chose Don't Allow before? Open System Settings and turn EucLink on."],
-                state: ctx.bluetooth, actions: actions, onAllow: actions.allowBluetooth)
+                state: ctx.bluetooth, actions: actions, onAllow: actions.allowBluetooth,
+                onReset: ctx.bluetooth == .denied ? { actions.resetPermission("BluetoothAlways") } : nil)
         case .pair: pair
         case .inputMonitoring:
             VStack(alignment: .leading, spacing: 18) {
@@ -225,7 +240,8 @@ struct GuideStepView: View {
                     instructions: ["Click Allow Input Monitoring below.",
                                    "In the prompt, choose Open System Settings.",
                                    "Turn EucLink on. If macOS asks to quit and reopen, choose Later and use Relaunch here."],
-                    state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring)
+                    state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
+                    onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil)
                 grabStatus
             }
         case .learn: learn
@@ -247,7 +263,9 @@ struct GuideStepView: View {
                 instructions: ["Click Allow Accessibility below.",
                                "In the prompt, choose Open System Settings.",
                                "Turn EucLink on. This one works without a relaunch."],
-                state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility)
+                state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility,
+                onReset: ctx.accessibilityTried && ctx.accessibility != .granted
+                    ? { actions.resetPermission("Accessibility") } : nil)
             }
         case .test: test
         case .done: done
