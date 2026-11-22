@@ -51,6 +51,16 @@ time you save one.
 **After every rebuild**, macOS sees a new signature and silently drops both permissions even
 though the privacy panes still show Clicktalk as on. Turn the entry off and on again, then
 relaunch. Users who build once never see this; it only bites while you are changing the code.
+If a toggle does not take, reset the record and grant again from the menu:
+
+```bash
+tccutil reset ListenEvent local.clicktalk
+tccutil reset Accessibility local.clicktalk
+```
+
+To keep grants across rebuilds, create a self-signed certificate in Keychain Access
+(Certificate Assistant > Create a Certificate, type Code Signing) and build with
+`CODESIGN_ID="Your Cert Name" ./build.sh`.
 
 ## Recipes
 

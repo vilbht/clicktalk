@@ -12,8 +12,11 @@ swiftc -O \
   Sources/main.swift -o "$APP/Contents/MacOS/Clicktalk"
 
 cp Info.plist "$APP/Contents/Info.plist"
-# Ad-hoc signature so macOS remembers the Bluetooth permission between launches.
-codesign --force --sign - "$APP"
+# Ad hoc signature by default. Every ad hoc build has a new signature, so macOS drops the
+# Input Monitoring and Accessibility grants after each rebuild. To keep them across builds,
+# create a self-signed "Code Signing" certificate in Keychain Access and pass its name:
+#   CODESIGN_ID="Clicktalk Dev" ./build.sh
+codesign --force --sign "${CODESIGN_ID:--}" "$APP"
 
 echo "Built $PWD/$APP"
 
