@@ -3,11 +3,25 @@
 Turn a cheap Bluetooth button into a key for your Mac. Hold it to talk to your dictation app,
 tap it to summon a chat app, or run any Shortcut.
 
-<p align="center"><img src="docs/images/step-9-done.png" width="420" alt="Clicktalk setup guide, final step"></p>
+<p align="center"><img src="docs/images/overview.png" width="720" alt="The Clicktalk window: status, the path a press takes, and your button"></p>
 
 Clicktalk is a small menu bar app. It takes hold of your Bluetooth clicker, so the key the clicker
 sends (often Volume Up) never reaches other apps. Then it runs the action you chose. A setup
 guide walks you through every macOS permission and shows when each one is on.
+
+## The button
+
+<p align="center"><img src="docs/images/clicker.png" width="260" alt="Illustration of a Bluetooth camera-shutter remote"></p>
+
+Clicktalk was built and tested with a cheap Bluetooth camera-shutter remote like the one above,
+the kind sold for taking selfies with a phone. Presentation clickers and other small Bluetooth
+remotes work the same way.
+
+In the screenshots below the remote appears as **BT1818**. That is the name its Bluetooth chip
+reports when it pairs, so it is what you see in Bluetooth settings and in Clicktalk's list of
+devices. macOS treats the remote as an HID device: a tiny keyboard that sends one key, usually
+Volume Up. Your remote may report a different name, such as AB Shutter3. Clicktalk does not care
+about the name or the key; it learns whichever your remote sends.
 
 ## What Clicktalk does, and what it needs
 
@@ -74,23 +88,22 @@ The guide has nine steps. Each one checks itself, and **Continue** lights up as 
 reports the step done. You can close the guide and pick up later from the menu bar dot under
 **Setup Guide**.
 
-*The screenshots come from an earlier build. The current one always shows "of 9" in the step
-counter, and lists connected devices first.*
-
 ### 1. Welcome
 
 The guide lists what you need. If Clicktalk is not in Applications, it offers to copy itself there
 first. macOS ties permissions to the app's location, so do this before granting anything.
+
 
 ### 2. Allow Bluetooth
 
 Click **Allow Bluetooth**, then **Allow** in the macOS prompt. Clicktalk only uses this to see
 whether your button is connected or asleep.
 
+
 ### 3. Choose your button
 
 Press your button once. Most clickers connect only when pressed, so it moves to **Connected now**.
-Select it.
+Select it. Here the remote is **BT1818**; the names of other paired devices are blurred.
 
 <p align="center"><img src="docs/images/step-3-button.png" width="480" alt="Choose your button"></p>
 
@@ -110,6 +123,7 @@ When the step is done, a green note says that Clicktalk now holds your button.
 
 Press the button once. Clicktalk learns which key the button sends, for example Volume Up, and shows
 its name. Every clicker is different, so this replaces any device list.
+
 
 ### 6. Choose what it does
 
@@ -140,6 +154,8 @@ Settings** in the prompt, and turn Clicktalk on. For other actions the step says
 Press the button. For push-to-talk, hold it, speak, then let go. The step turns green with
 **It works**, and shows what the press did. If nothing happens, wake the button with a press, and
 check that the recorded shortcut matches the target app's global shortcut.
+
+<p align="center"><img src="docs/images/step-8-test.png" width="480" alt="Try it: waiting for a press"></p>
 
 ### 9. Done
 
