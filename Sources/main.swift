@@ -488,16 +488,24 @@ final class Monitor: NSObject {
         }
     }
 
+    /// Per-interface result. A Bluetooth button usually exposes two or three HID
+    /// interfaces (keyboard, consumer, pointer); each is opened on its own.
+    enum DeviceGrab: Equatable { case seized, listening(IOReturn), failed(IOReturn) }
+    private var opened: [IOHIDDevice: DeviceGrab] = [:]
+    private(set) var grabDetail = ""
+
+    /// Tears down and recreates the matching manager for the current device identity.
+    /// The manager is never opened itself; it only reports arrivals and removals, and
+    /// each matching interface is opened individually in `openDevice`.
     func rebuildGrab() {
+        closeAll()
         if let m = grabManager {
             IOHIDManagerUnscheduleFromRunLoop(m, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
-            IOHIDManagerClose(m, IOOptionBits(kIOHIDOptionsTypeNone))
             grabManager = nil
         }
-        pressed.removeAll()
         let idents = deviceIdents.filter { !$0.isEmpty }
-        guard !idents.isEmpty else { grab = .idle; return }
-        guard inputMonitoringGranted else { grab = .noPermission; return }
+        guard !idents.isEmpty else { grab = .idle; grabDetail = ""; return }
+        guard inputMonitoringGranted else { grab = .noPermission; grabDetail = ""; return }
 
         let m = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let dicts: [[String: Any]] = idents.map { i in
@@ -509,27 +517,120 @@ final class Monitor: NSObject {
         }
         IOHIDManagerSetDeviceMatchingMultiple(m, dicts as CFArray)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
-        IOHIDManagerRegisterInputValueCallback(m, { p, _, _, value in
+        IOHIDManagerRegisterDeviceMatchingCallback(m, { p, _, _, dev in
             guard let p = p else { return }
-            Unmanaged<Monitor>.fromOpaque(p).takeUnretainedValue().handleInput(value)
+            Unmanaged<Monitor>.fromOpaque(p).takeUnretainedValue().deviceArrived(dev)
+        }, ctx)
+        IOHIDManagerRegisterDeviceRemovalCallback(m, { p, _, _, dev in
+            guard let p = p else { return }
+            Unmanaged<Monitor>.fromOpaque(p).takeUnretainedValue().deviceRemoved(dev)
         }, ctx)
         IOHIDManagerScheduleWithRunLoop(m, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+        grabManager = m
+        sweep()
+    }
 
-        var r = IOHIDManagerOpen(m, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
+    private func closeAll() {
+        for (dev, state) in opened {
+            if case .failed = state { continue }
+            IOHIDDeviceUnscheduleFromRunLoop(dev, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+            IOHIDDeviceClose(dev, IOOptionBits(kIOHIDOptionsTypeNone))
+        }
+        opened.removeAll()
+        pressed.removeAll()
+        heldKeys.removeAll()
+    }
+
+    /// Opens any matching interface not yet opened and forgets ones that left. Called
+    /// from the arrival callback and from every refresh, so a missed callback costs at
+    /// most three seconds.
+    func sweep() {
+        guard let m = grabManager, inputMonitoringGranted else { return }
+        let present = (IOHIDManagerCopyDevices(m) as? Set<IOHIDDevice>) ?? []
+        for d in present where opened[d] == nil { openDevice(d) }
+        for d in Array(opened.keys) where !present.contains(d) { opened.removeValue(forKey: d) }
+        summarise()
+    }
+
+    private func deviceArrived(_ dev: IOHIDDevice) {
+        guard inputMonitoringGranted, opened[dev] == nil else { return }
+        openDevice(dev)
+        summarise()
+        refreshSoon()
+    }
+
+    private func deviceRemoved(_ dev: IOHIDDevice) {
+        if opened.removeValue(forKey: dev) != nil {
+            log("Button interface went away")
+            summarise()
+            refreshSoon()
+        }
+    }
+
+    private func openDevice(_ dev: IOHIDDevice) {
+        let usagePage = (IOHIDDeviceGetProperty(dev, kIOHIDPrimaryUsagePageKey as CFString) as? Int) ?? 0
+        let usage = (IOHIDDeviceGetProperty(dev, kIOHIDPrimaryUsageKey as CFString) as? Int) ?? 0
+        let label = interfaceLabel(usagePage: usagePage, usage: usage)
+        var state: DeviceGrab
+        var r = IOHIDDeviceOpen(dev, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
         if r == 0 {
-            grab = .seized
+            state = .seized
         } else {
             let seizeErr = r
-            IOHIDManagerClose(m, IOOptionBits(kIOHIDOptionsTypeSeizeDevice))
-            r = IOHIDManagerOpen(m, IOOptionBits(kIOHIDOptionsTypeNone))
-            grab = r == 0 ? .listening(seizeErr) : .failed(r)
+            r = IOHIDDeviceOpen(dev, IOOptionBits(kIOHIDOptionsTypeNone))
+            state = r == 0 ? .listening(seizeErr) : .failed(r)
         }
-        grabManager = m
-        switch grab {
-        case .seized: log("Grabbed button exclusively")
-        case .listening(let e): log("Listening only; exclusive grab refused (\(hex(e)))")
-        case .failed(let e): log("Could not open button (\(hex(e)))")
-        default: break
+        if case .failed = state {} else {
+            let ctx = Unmanaged.passUnretained(self).toOpaque()
+            IOHIDDeviceRegisterInputValueCallback(dev, { p, _, _, value in
+                guard let p = p else { return }
+                Unmanaged<Monitor>.fromOpaque(p).takeUnretainedValue().handleInput(value)
+            }, ctx)
+            IOHIDDeviceScheduleWithRunLoop(dev, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+        }
+        opened[dev] = state
+        switch state {
+        case .seized: log("\(label) interface: exclusive")
+        case .listening(let e): log("\(label) interface: listening, seize refused \(hex(e))")
+        case .failed(let e): log("\(label) interface: could not open \(hex(e))")
+        }
+    }
+
+    private func interfaceLabel(usagePage: Int, usage: Int) -> String {
+        switch (usagePage, usage) {
+        case (1, 6), (1, 7): return "keyboard"
+        case (1, 2): return "mouse"
+        case (1, 1): return "pointer"
+        case (0x0C, 1): return "consumer"
+        case (1, 0x80): return "system control"
+        default: return "page \(usagePage) usage \(usage)"
+        }
+    }
+
+    private func summarise() {
+        let states = Array(opened.values)
+        var seized = 0, listening = 0, failed = 0
+        var listenErr: IOReturn = 0, failErr: IOReturn = 0
+        for s in states {
+            switch s {
+            case .seized: seized += 1
+            case .listening(let e): listening += 1; listenErr = e
+            case .failed(let e): failed += 1; failErr = e
+            }
+        }
+        if states.isEmpty {
+            grab = .idle
+            grabDetail = "no interface present"
+        } else if seized > 0 {
+            grab = .seized
+            grabDetail = "\(seized) of \(states.count) interface\(states.count == 1 ? "" : "s") exclusive"
+                + (listening > 0 ? ", \(listening) listening" : "") + (failed > 0 ? ", \(failed) refused" : "")
+        } else if listening > 0 {
+            grab = .listening(listenErr)
+            grabDetail = "\(listening) listening" + (failed > 0 ? ", \(failed) refused" : "")
+        } else {
+            grab = .failed(failErr)
+            grabDetail = "all \(failed) refused"
         }
     }
 
@@ -685,7 +786,7 @@ final class Monitor: NSObject {
         }
 
         s.inputMonitoring = inputMonitoringGranted
-        if grab == .noPermission && s.inputMonitoring { rebuildGrab() }
+        if grab == .noPermission && s.inputMonitoring { rebuildGrab() } else { sweep() }
         s.grab = grab
         s.bindings = bindings
         s.accessibility = !s.bindings.contains { $0.action.kind == .keystroke } || AXIsProcessTrusted()
@@ -739,9 +840,14 @@ final class Monitor: NSObject {
         switch s.grab {
         case .failed(let e):
             s.health = .bad; s.diagnosis = "Could not open the button (\(hex(e)))"
-            s.hint = e == kReturnNotPermitted
-                ? "Input Monitoring was refused. Allow Clicktalk in the privacy pane and relaunch."
-                : "Remove the pairing and pair again."
+            if e == kReturnNotPermitted {
+                s.hint = "macOS refused this process. Quit Clicktalk and relaunch; Input Monitoring "
+                    + "applies at launch. If it persists: tccutil reset ListenEvent local.clicktalk"
+            } else if e == kReturnExclusiveAccess {
+                s.hint = "Another app holds every interface. Quit Karabiner or the other app and relaunch."
+            } else {
+                s.hint = "Unexpected error. Remove the pairing, pair again, and check Recent events."
+            }
             return
         case .listening(let e):
             s.health = .warn; s.diagnosis = "Listening, but the button's original key also reaches macOS"
@@ -997,11 +1103,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(info("Input Monitoring: \(s.inputMonitoring ? "granted" : "NOT granted")"))
         let grabText: String
         switch s.grab {
-        case .idle: grabText = "waiting for the button's identity"
+        case .idle: grabText = monitor.grabDetail.isEmpty ? "waiting for the button's identity" : monitor.grabDetail
         case .noPermission: grabText = "blocked, no permission"
-        case .seized: grabText = "exclusive"
-        case .listening(let e): grabText = "listening only, seize refused \(hex(e))"
-        case .failed(let e): grabText = "failed \(hex(e))"
+        case .seized: grabText = monitor.grabDetail
+        case .listening(let e): grabText = "\(monitor.grabDetail), seize refused \(hex(e))"
+        case .failed(let e): grabText = "\(monitor.grabDetail), last error \(hex(e))"
         }
         menu.addItem(info("Grab: \(grabText)"))
         if s.karabinerRunning {
