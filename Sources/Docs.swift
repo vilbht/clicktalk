@@ -26,24 +26,37 @@ enum DocsRenderer {
             return c
         }
 
-        let pages: [(String, GuideStep, GuideContext, Action)] = [
-            ("guide-1-welcome", .welcome, base, Action()),
-            ("guide-2-bluetooth", .bluetooth, base, Action()),
-            ("guide-3-button", .pair, ctx { $0.bluetooth = .granted; $0.selectedDevice = "AB Shutter3"; $0.connected = true }, Action()),
-            ("guide-4-input-monitoring", .inputMonitoring, ctx { $0.bluetooth = .granted; $0.selectedDevice = "AB Shutter3" }, Action()),
-            ("guide-5-learn", .learn, ctx { $0.isLearning = true }, Action()),
-            ("guide-5b-learned", .learn, ctx { $0.trigger = Trigger(usagePage: 0x0C, usage: 0xE9) }, Action()),
-            ("guide-6-action", .action, ctx { $0.trigger = Trigger(usagePage: 0x0C, usage: 0xE9) }, keystroke),
-            ("guide-7-accessibility", .accessibility, base, keystroke),
+        // Each page as a new user meets it: earlier permissions allowed, this step open.
+        let button: (inout GuideContext) -> Void = {
+            $0.bluetooth = .granted; $0.selectedDevice = "AB Shutter3"; $0.connected = true
+        }
+        let held: (inout GuideContext) -> Void = {
+            button(&$0); $0.inputMonitoring = .granted; $0.grab = .seized
+        }
+        let learned: (inout GuideContext) -> Void = {
+            held(&$0); $0.trigger = Trigger(usagePage: 0x0C, usage: 0xE9)
+        }
+        let pages: [(String, GuideStep, GuideContext, Action, Bool)] = [
+            ("guide-1-welcome", .welcome, base, Action(), true),
+            ("guide-2-bluetooth", .bluetooth, base, Action(), true),
+            ("guide-2b-bluetooth-allowed", .bluetooth, ctx { $0.bluetooth = .granted }, Action(), true),
+            ("guide-3-button", .pair, ctx(button), Action(), true),
+            ("guide-4-input-monitoring", .inputMonitoring, ctx(button), Action(), true),
+            ("guide-5-learn", .learn, ctx { held(&$0); $0.isLearning = true }, Action(), false),
+            ("guide-5b-learned", .learn, ctx(learned), Action(), true),
+            ("guide-6-action", .action, ctx(learned), keystroke, true),
+            ("guide-7-accessibility", .accessibility, ctx(learned), keystroke, true),
             ("guide-8-test", .test, ctx {
+                learned(&$0); $0.accessibility = .granted
                 $0.testPassed = true
                 $0.lastOutcome = "Volume Up held → key down fn Space"
-            }, keystroke),
-            ("guide-9-done", .done, ctx { $0.launchAtLogin = true }, keystroke),
+            }, keystroke, true),
+            ("guide-9-done", .done, ctx { learned(&$0); $0.accessibility = .granted; $0.launchAtLogin = true },
+             keystroke, true),
         ]
-        for (name, step, c, action) in pages {
+        for (name, step, c, action, canContinue) in pages {
             let view = GuideFrame(step: step, steps: steps, ctx: c, actions: GuideActions(),
-                                  action: .constant(action), canContinue: true, scrolls: false)
+                                  action: .constant(action), canContinue: canContinue, scrolls: false)
             write(view, size: CGSize(width: 660, height: 700), to: dir.appendingPathComponent(name + ".png"))
         }
 

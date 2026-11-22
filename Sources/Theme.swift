@@ -556,6 +556,7 @@ struct FlowChain: View {
 /// The real app, as a tile the user can drag into a System Settings privacy list.
 /// The drag carries the app the same way Finder does (see AppDragSourceView).
 struct DragAppTile: View {
+    @Environment(\.drawnControls) private var drawn
     var body: some View {
         VStack(spacing: 8) {
             AppMark(size: 58)
@@ -563,7 +564,7 @@ struct DragAppTile: View {
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
-                .overlay(AppDragSource())
+                .overlay { if !drawn { AppDragSource() } }
                 .help("Drag EucLink into the list in System Settings")
             Text("Drag me into the list")
                 .font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
@@ -588,10 +589,24 @@ struct DragDemo: View {
     let from: CGPoint
     let to: CGPoint
     private let period = 3.0
+    @Environment(\.drawnControls) private var still
 
     var body: some View {
-        TimelineView(.animation) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+        Group {
+            if still {
+                // README images: one frozen moment, mid-carry.
+                frame(at: 0.52)
+            } else {
+                TimelineView(.animation) { timeline in
+                    frame(at: timeline.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: period) / period)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder private func frame(at t: Double) -> some View {
             let start = CGPoint(x: from.x - 40, y: from.y + 46)
             // 0-0.18 reach the icon, 0.18-0.26 grab, 0.26-0.72 carry, 0.72-0.80 drop, then rest.
             let reach = ease(clamp((t - 0.0) / 0.18))
@@ -621,8 +636,6 @@ struct DragDemo: View {
                     .position(x: p.x + 6, y: p.y + 6)
                     .opacity(fade)
             }
-        }
-        .allowsHitTesting(false)
     }
 
     private func clamp(_ x: Double) -> Double { min(1, max(0, x)) }

@@ -18,3 +18,11 @@ jobs:
         run: ./build.sh ci
       - name: Make the disk image
         run: dmg/make.sh EucLink.dmg
+      # The README's guide pictures, drawn from the real views with sample data.
+      - name: Render the guide pictures
+        run: EucLink.app/Contents/MacOS/EucLink --render-docs rendered
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guide-pictures
+          path: rendered
+          retention-days: 14
