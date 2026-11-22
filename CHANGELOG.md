@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-11-22
+
 ### Fixed
 
 - After updating in place, macOS asked for the login keychain password so the new build could
