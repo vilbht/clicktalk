@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Opening EucLink yourself now shows its window. Before, it only appeared in the menu bar,
+  which looked as if nothing had opened. A start at login still stays in the menu bar.
+
 ### Fixed
 
 - On a permission step that said Turned off, the Reset and Try Again row replaced the drag

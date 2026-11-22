@@ -67,8 +67,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
         if !state.guideDone && monitor.bindings.isEmpty {
             showGuide()
+        } else if !launchedAtLogin {
+            // Opened by hand: show the window, so it is clear EucLink started. A start at
+            // login stays in the menu bar.
+            showMain(nil)
         }
         state.resumePermissionRequest()
+    }
+
+    /// True when macOS started EucLink as a login item rather than the owner opening it.
+    private var launchedAtLogin: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventID == AEEventID(kAEOpenApplication) else { return false }
+        return event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?.enumCodeValue
+            == OSType(keyAELaunchedAsLogInItem)
     }
 
     /// Opening the app again from Finder or Spotlight shows the window.
