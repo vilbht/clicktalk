@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-11-22
+
 ### Fixed
 
 - macOS asked for Bluetooth as soon as EucLink started, before the setup guide had explained
