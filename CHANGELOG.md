@@ -6,17 +6,13 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-22
+
 ### Changed
 
 - Buttons and switches are now Apple's standard controls instead of drawn ones. On macOS 26
   and later they use the Liquid Glass styles, and the guide's tab bar sits on glass. On macOS
   13 to 15 they look native to that version.
-
-- Links to System Settings name the exact place: Open Bluetooth Settings, Open Input Monitoring
-  Settings, Open Accessibility Settings.
-- The Input Monitoring and Accessibility steps say that macOS may ask for your password or
-  Touch ID there, and that EucLink never asks for one.
-
 - The guide has one main button, and it is the step's own action: Allow Bluetooth, Allow
   Input Monitoring, Restart EucLink, Allow Accessibility. When the step is done the button
   becomes Continue. Nothing in the guide moves, restarts or opens by itself any more.
@@ -24,12 +20,11 @@ All notable changes to EucLink are listed here. The format follows
   named and tinted.
 - A permission step shows a green confirmation when it is allowed, with "1 of 3 permissions
   done".
+- Links to System Settings name the exact place: Open Bluetooth Settings, Open Input Monitoring
+  Settings, Open Accessibility Settings.
+- The Input Monitoring and Accessibility steps say that macOS may ask for your password or
+  Touch ID there, and that EucLink never asks for one.
 - Open EucLink at login is on by default. The switch on the last step turns it off.
-
-## [0.4.11] - 2026-11-22
-
-### Changed
-
 - Opening EucLink yourself now shows its window. Before, it only appeared in the menu bar,
   which looked as if nothing had opened. A start at login still stays in the menu bar.
 
