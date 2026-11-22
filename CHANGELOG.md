@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-22
+
 ### Fixed
 
 - Copy to Applications failed with "no such file" when EucLink was opened straight from the
