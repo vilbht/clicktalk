@@ -986,27 +986,94 @@ final class Monitor: NSObject {
     }
 }
 
-// MARK: - Key capture view for recording a keystroke
+// MARK: - Keystroke recording
 
-final class KeyCaptureView: NSView {
-    var onKey: ((NSEvent) -> Void)?
-    let label = NSTextField(labelWithString: "Press the keys now")
+/// Records the next key press through a listen-only session event tap. Unlike a view's
+/// keyDown, the tap sees a key even when another app owns it as a global hotkey, which
+/// is exactly the case when recording a dictation app's shortcut. Needs Input Monitoring,
+/// which Clicktalk already has by this point.
+final class KeyRecorder {
+    private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
+    var onKey: ((Int, CGEventFlags, String?) -> Void)?
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        label.alignment = .center
-        label.font = .monospacedSystemFont(ofSize: 14, weight: .medium)
-        label.frame = bounds
-        label.autoresizingMask = [.width, .height]
-        addSubview(label)
+    func start() -> Bool {
+        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        let ctx = Unmanaged.passUnretained(self).toOpaque()
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
+            eventsOfInterest: mask,
+            callback: { _, type, event, ctx in
+                if type == .keyDown, let ctx = ctx {
+                    let r = Unmanaged<KeyRecorder>.fromOpaque(ctx).takeUnretainedValue()
+                    let code = Int(event.getIntegerValueField(.keyboardEventKeycode))
+                    let flags = event.flags.intersection(
+                        [.maskCommand, .maskAlternate, .maskControl, .maskShift, .maskSecondaryFn])
+                    let chars = NSEvent(cgEvent: event)?.charactersIgnoringModifiers
+                    DispatchQueue.main.async { r.onKey?(code, flags, chars) }
+                }
+                return Unmanaged.passUnretained(event)
+            }, userInfo: ctx) else { return false }
+        self.tap = tap
+        let src = CFMachPortCreateRunLoopSource(nil, tap, 0)
+        source = src
+        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        return true
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-    override var acceptsFirstResponder: Bool { true }
-    override func keyDown(with event: NSEvent) { onKey?(event) }
-    override func flagsChanged(with event: NSEvent) {
-        label.stringValue = keystrokeName(keyCode: 0xFFFF, flags: event.modifierFlags, chars: nil) + "…"
+    func stop() {
+        if let t = tap {
+            CGEvent.tapEnable(tap: t, enable: false)
+            CFMachPortInvalidate(t)
+        }
+        if let s = source { CFRunLoopRemoveSource(CFRunLoopGetMain(), s, .commonModes) }
+        tap = nil
+        source = nil
     }
+}
+
+func nsFlags(_ f: CGEventFlags) -> NSEvent.ModifierFlags {
+    var m: NSEvent.ModifierFlags = []
+    if f.contains(.maskCommand) { m.insert(.command) }
+    if f.contains(.maskAlternate) { m.insert(.option) }
+    if f.contains(.maskControl) { m.insert(.control) }
+    if f.contains(.maskShift) { m.insert(.shift) }
+    if f.contains(.maskSecondaryFn) { m.insert(.function) }
+    return m
+}
+
+/// Parses "cmd+shift+space", "option+k", "ctrl+alt+f5" into a key code and flags.
+/// US layout key codes; letters, digits, punctuation, function keys and navigation keys.
+func parseKeystroke(_ text: String) -> (keyCode: Int, flags: CGEventFlags, name: String)? {
+    let codes: [String: Int] = [
+        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11,
+        "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21,
+        "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31,
+        "u": 32, "[": 33, "i": 34, "p": 35, "return": 36, "enter": 36, "l": 37, "j": 38, "'": 39,
+        "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48,
+        "space": 49, "`": 50, "delete": 51, "backspace": 51, "escape": 53, "esc": 53,
+        "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97, "f7": 98, "f8": 100,
+        "f9": 101, "f10": 109, "f11": 103, "f12": 111, "home": 115, "end": 119, "pageup": 116,
+        "pagedown": 121, "left": 123, "right": 124, "down": 125, "up": 126, "forwarddelete": 117,
+    ]
+    var flags: CGEventFlags = []
+    var key: String?
+    for raw in text.lowercased().split(whereSeparator: { $0 == "+" || $0 == " " }) {
+        let part = String(raw).trimmingCharacters(in: .whitespaces)
+        switch part {
+        case "cmd", "command", "⌘": flags.insert(.maskCommand)
+        case "opt", "option", "alt", "⌥": flags.insert(.maskAlternate)
+        case "ctrl", "control", "⌃": flags.insert(.maskControl)
+        case "shift", "⇧": flags.insert(.maskShift)
+        case "fn", "function": flags.insert(.maskSecondaryFn)
+        case "": break
+        default: key = part
+        }
+    }
+    guard let k = key, let code = codes[k] else { return nil }
+    let name = keystrokeName(keyCode: UInt16(code), flags: nsFlags(flags), chars: k.count == 1 ? k : nil)
+    return (code, flags, name)
 }
 
 // MARK: - App
@@ -1333,24 +1400,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             guard a.runModal() == .alertFirstButtonReturn else { return }
             update(id) { $0.action = Action(kind: .shortcut, value: popup.titleOfSelectedItem ?? "") }
         case .keystroke:
-            let a = NSAlert()
-            a.messageText = "Press the keystroke"
-            a.informativeText = "Hold the modifiers and press the key, for example ⌥ Space. "
-                + "Return and Escape cannot be recorded."
-            let view = KeyCaptureView(frame: NSRect(x: 0, y: 0, width: 300, height: 30))
-            a.accessoryView = view
-            a.addButton(withTitle: "Cancel")
-            var captured: NSEvent?
-            view.onKey = { e in
-                captured = e
-                NSApp.stopModal(withCode: .OK)
+            var keyCode = 0
+            var flags: CGEventFlags = []
+            var name = ""
+            let recorder = KeyRecorder()
+            var recorded = false
+            if recorder.start() {
+                let a = NSAlert()
+                a.messageText = "Press the keystroke now"
+                a.informativeText = "Hold the modifiers and tap the key, for example ⌥ Space. "
+                    + "If another app owns that shortcut it will fire once; that is fine."
+                a.addButton(withTitle: "Type it instead")
+                a.addButton(withTitle: "Cancel")
+                recorder.onKey = { code, f, chars in
+                    keyCode = code
+                    flags = f
+                    name = keystrokeName(keyCode: UInt16(code), flags: nsFlags(f), chars: chars)
+                    recorded = true
+                    NSApp.stopModal(withCode: .OK)
+                }
+                let r = a.runModal()
+                recorder.stop()
+                if r == .alertSecondButtonReturn { return }
+                if r == .OK && recorded {
+                    // fall through to the Press/Hold question
+                } else if r != .alertFirstButtonReturn {
+                    return
+                }
             }
-            a.layout()
-            a.window.initialFirstResponder = view
-            let r = a.runModal()
-            guard r == .OK, let e = captured else { return }
-            let mods = e.modifierFlags.intersection([.command, .option, .control, .shift, .function])
-            let name = keystrokeName(keyCode: e.keyCode, flags: mods, chars: e.charactersIgnoringModifiers)
+            if !recorded {
+                guard let typed = askText("Type the keystroke",
+                                          "Examples: cmd+shift+space, option+k, ctrl+alt+f5.", initial: "") else { return }
+                guard let parsed = parseKeystroke(typed) else {
+                    alert("Could not read that", "Use names like cmd, shift, option, ctrl, fn and a key such as space, k or f5.")
+                    return
+                }
+                keyCode = parsed.keyCode
+                flags = parsed.flags
+                name = parsed.name
+            }
             let mode = NSAlert()
             mode.messageText = "How should \(name) be sent?"
             mode.informativeText = "Press: a quick tap, for toggles and app hotkeys. "
@@ -1359,8 +1447,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             mode.addButton(withTitle: "Hold")
             let hold = mode.runModal() == .alertSecondButtonReturn
             update(id) {
-                $0.action = Action(kind: .keystroke, value: name, keyCode: Int(e.keyCode),
-                                   flags: cgFlags(mods).rawValue, hold: hold)
+                $0.action = Action(kind: .keystroke, value: name, keyCode: keyCode,
+                                   flags: flags.rawValue, hold: hold)
             }
             if !AXIsProcessTrusted() { monitor.requestAccessibility() }
         case .url:

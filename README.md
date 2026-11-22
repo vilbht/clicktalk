@@ -127,6 +127,8 @@ events** for the button, and relaunch Clicktalk. Everything else in Karabiner ke
 ## Limits
 
 - Return and Escape cannot be recorded as keystroke actions; the recorder dialog eats them.
+  Use "Type it instead" and write `return` or `escape`.
+- Recording a shortcut another app owns fires that app once. Harmless, but expect it.
 - Double-press and long-press are not distinguished yet.
 - The exclusive grab can be refused for some devices. Bindings still fire in listening mode,
   but the button's original key also reaches macOS.
