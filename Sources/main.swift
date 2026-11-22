@@ -504,6 +504,7 @@ final class Monitor: NSObject {
     /// interfaces (keyboard, consumer, pointer); each is opened on its own.
     enum DeviceGrab: Equatable { case seized, listening(IOReturn), failed(IOReturn) }
     private var opened: [IOHIDDevice: DeviceGrab] = [:]
+    private var failedAt: [IOHIDDevice: Date] = [:]
     private(set) var grabDetail = ""
 
     /// Tears down and recreates the matching manager for the current device identity.
@@ -549,6 +550,7 @@ final class Monitor: NSObject {
             IOHIDDeviceClose(dev, IOOptionBits(kIOHIDOptionsTypeNone))
         }
         opened.removeAll()
+        failedAt.removeAll()
         pressed.removeAll()
         heldKeys.removeAll()
     }
@@ -559,8 +561,18 @@ final class Monitor: NSObject {
     func sweep() {
         guard let m = grabManager, inputMonitoringGranted else { return }
         let present = (IOHIDManagerCopyDevices(m) as? Set<IOHIDDevice>) ?? []
-        for d in present where opened[d] == nil { openDevice(d) }
-        for d in Array(opened.keys) where !present.contains(d) { opened.removeValue(forKey: d) }
+        for d in present {
+            if opened[d] == nil {
+                openDevice(d)
+            } else if case .failed = opened[d]!, Date().timeIntervalSince(failedAt[d] ?? .distantPast) > 10 {
+                // Retry refused interfaces every 10s: the other holder may have let go.
+                openDevice(d)
+            }
+        }
+        for d in Array(opened.keys) where !present.contains(d) {
+            opened.removeValue(forKey: d)
+            failedAt.removeValue(forKey: d)
+        }
         summarise()
     }
 
@@ -600,11 +612,16 @@ final class Monitor: NSObject {
             }, ctx)
             IOHIDDeviceScheduleWithRunLoop(dev, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
         }
+        let previous = opened[dev]
         opened[dev] = state
+        if case .failed = state { failedAt[dev] = Date() } else { failedAt.removeValue(forKey: dev) }
+        guard previous != state else { return } // retry with the same result: stay quiet
         switch state {
         case .seized: log("\(label) interface: exclusive")
         case .listening(let e): log("\(label) interface: listening, seize refused \(hex(e))")
-        case .failed(let e): log("\(label) interface: could not open \(hex(e))")
+        case .failed(let e):
+            log("\(label) interface: could not open \(hex(e))"
+                + (e == kReturnExclusiveAccess ? ", another app holds it" : ""))
         }
     }
 
