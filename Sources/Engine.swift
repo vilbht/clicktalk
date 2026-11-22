@@ -563,10 +563,15 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         }
     }
 
-    /// Only an explicit denial stops us from trying. On "unknown" the open itself is
-    /// attempted; macOS then prompts, or refuses with kIOReturnNotPermitted.
+    /// Whether opening the button may be tried. Granted: yes. Denied: no. Not asked yet:
+    /// only after the owner clicked Allow Input Monitoring, because the open itself makes
+    /// macOS prompt, and the guide asks for each permission on its own step.
     var inputMonitoringGranted: Bool {
-        IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeDenied
+        switch IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) {
+        case kIOHIDAccessTypeGranted: return true
+        case kIOHIDAccessTypeDenied: return false
+        default: return UserDefaults.standard.bool(forKey: "inputMonitoringAsked")
+        }
     }
 
     /// Asks for Input Monitoring in every way macOS listens to. IOHIDRequestAccess alone
@@ -575,6 +580,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     /// attempt to create a listen-only event tap both make macOS record the request, so
     /// EucLink appears in the list. The tap is closed at once and never reads an event.
     func requestInputMonitoring() {
+        UserDefaults.standard.set(true, forKey: "inputMonitoringAsked")
         _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
         _ = CGRequestListenEventAccess()
         if let tap = CGEvent.tapCreate(

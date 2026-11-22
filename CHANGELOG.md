@@ -11,6 +11,9 @@ All notable changes to EucLink are listed here. The format follows
 - macOS asked for Bluetooth as soon as EucLink started, before the setup guide had explained
   why. EucLink now makes no Bluetooth calls until you click Allow Bluetooth on the guide's
   Bluetooth step.
+- Choosing your button on step 3 could make macOS ask for Input Monitoring a step early.
+  EucLink now waits to take hold of the button until you click Allow Input Monitoring, so
+  each permission is asked for on its own screen.
 
 ## [0.4.7] - 2026-11-22
 
