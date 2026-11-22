@@ -1,0 +1,31 @@
+# Builds EucLink when a version tag such as v0.3.0 is pushed, and attaches the zipped
+# app to a GitHub Release. The release notes are that version's CHANGELOG section.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: ./build.sh ci
+      - name: Zip the app
+        run: ditto -c -k --keepParent EucLink.app "EucLink-${GITHUB_REF_NAME}-apple-silicon.zip"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            /^## \[/ { on = 0 }
+            on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" "EucLink-${GITHUB_REF_NAME}-apple-silicon.zip" \
+            --title "EucLink $GITHUB_REF_NAME" --notes-file notes.md

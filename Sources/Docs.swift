@@ -1,5 +1,5 @@
 // Renders the README images from the real views with sample data:
-//   Clicktalk.app/Contents/MacOS/Clicktalk --render-docs docs/images
+//   EucLink.app/Contents/MacOS/EucLink --render-docs docs/images
 // build.sh runs this for `./build.sh docs`.
 
 import AppKit

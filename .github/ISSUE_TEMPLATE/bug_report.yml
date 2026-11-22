@@ -1,0 +1,39 @@
+name: Bug report
+description: The button, a permission or an action does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: dot
+    attributes:
+      label: Menu bar dot
+      description: Its colour and label, for example "yellow GRAB", and the diagnosis shown when you click it.
+  - type: textarea
+    id: activity
+    attributes:
+      label: Activity log
+      description: From EucLink > Activity. Remove anything you do not want to share.
+      render: text
+  - type: input
+    id: button
+    attributes:
+      label: Button
+      description: The name it shows in Bluetooth settings, and the kind of device (camera remote, presenter).
+  - type: input
+    id: target
+    attributes:
+      label: Target app and shortcut
+      description: For example "Handy, fn+Space, push-to-talk".
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: EucLink version (EucLink > General), macOS version, Apple silicon or Intel.
+    validations:
+      required: true

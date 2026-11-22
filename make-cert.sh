@@ -3,17 +3,17 @@
 # build.sh then signs with it, so the Input Monitoring and Accessibility grants
 # survive rebuilds. Ad hoc signatures change on every build and lose the grants.
 #
-# Usage: ./make-cert.sh            (creates "Clicktalk Dev")
+# Usage: ./make-cert.sh            (creates "EucLink Dev")
 #        ./make-cert.sh "My Name"  (custom name; pass the same to CODESIGN_ID)
 #
 # macOS asks for your login password once, to trust the certificate for code signing.
 #
 # The key is imported without any app on its "always allow" list, so every use asks you.
 # When build.sh signs, click Allow. Never click Always Allow: that would let any program
-# running under your account sign itself as Clicktalk and inherit its permissions.
+# running under your account sign itself as EucLink and inherit its permissions.
 set -euo pipefail
 
-NAME="${1:-Clicktalk Dev}"
+NAME="${1:-EucLink Dev}"
 
 check_access() {
   echo
@@ -54,13 +54,13 @@ OPENSSL=/usr/bin/openssl
 "$OPENSSL" req -x509 -newkey rsa:2048 -nodes -days 3650 \
   -keyout "$TMP/key.pem" -out "$TMP/cert.pem" -config "$TMP/cert.cnf" 2>/dev/null
 "$OPENSSL" pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-  -out "$TMP/id.p12" -passout pass:clicktalk -name "$NAME" \
+  -out "$TMP/id.p12" -passout pass:euclink -name "$NAME" \
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
 
 KEYCHAIN="$(security default-keychain -d user | tr -d ' "')"
 # No -T: a trusted-application entry trusts a tool, not whoever runs it, so any program
-# could sign as Clicktalk through it without asking. Without one, every use prompts.
-security import "$TMP/id.p12" -k "$KEYCHAIN" -P clicktalk >/dev/null
+# could sign as EucLink through it without asking. Without one, every use prompts.
+security import "$TMP/id.p12" -k "$KEYCHAIN" -P euclink >/dev/null
 echo "Imported \"$NAME\" into $KEYCHAIN."
 echo "Now trusting it for code signing. macOS will ask for your login password."
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"

@@ -10,7 +10,7 @@ import ServiceManagement
 import SwiftUI
 
 @main
-struct ClicktalkMain {
+struct EucLinkMain {
     @MainActor static func main() {
         let args = CommandLine.arguments
         func value(after flag: String) -> String? {
@@ -89,13 +89,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 880, height: 620),
                              styleMask: [.titled, .closable, .miniaturizable, .resizable],
                              backing: .buffered, defer: false)
-            w.title = "Clicktalk"
+            w.title = "EucLink"
             w.contentViewController = NSHostingController(rootView: MainView(state: state))
             w.setContentSize(NSSize(width: 880, height: 620))
             w.isReleasedWhenClosed = false
             w.delegate = self
             w.center()
-            w.setFrameAutosaveName("ClicktalkMain")
+            w.setFrameAutosaveName("EucLinkMain")
             mainWindow = w
         }
         present(mainWindow!)
@@ -106,7 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 700),
                              styleMask: [.titled, .closable],
                              backing: .buffered, defer: false)
-            w.title = "Set Up Clicktalk"
+            w.title = "Set Up EucLink"
             w.contentViewController = NSHostingController(rootView: GuideWindowView(state: state))
             w.setContentSize(NSSize(width: 660, height: 700))
             w.isReleasedWhenClosed = false
@@ -161,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
                              .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)]))
         }
         statusItem.button?.attributedTitle = title
-        statusItem.button?.toolTip = "Clicktalk: \(s.diagnosis)"
+        statusItem.button?.toolTip = "EucLink: \(s.diagnosis)"
     }
 
     private func item(_ title: String, _ sel: Selector?, key: String = "") -> NSMenuItem {
@@ -191,10 +191,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if s.paired && !s.connected {
             menu.addItem(item("Reconnect Now", #selector(reconnectNow), key: "r"))
         }
-        menu.addItem(item("Open Clicktalk…", #selector(openMain), key: ","))
+        menu.addItem(item("Open EucLink…", #selector(openMain), key: ","))
         menu.addItem(item("Setup Guide…", #selector(openGuide)))
         menu.addItem(.separator())
-        menu.addItem(item("Quit Clicktalk", #selector(quit), key: "q"))
+        menu.addItem(item("Quit EucLink", #selector(quit), key: "q"))
     }
 
     @objc private func runFix() {

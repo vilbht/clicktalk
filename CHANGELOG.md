@@ -1,0 +1,45 @@
+# Changelog
+
+All notable changes to EucLink are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.3.0] - 2026-11-22
+
+### Changed
+
+- Renamed the app from Clicktalk to EucLink. The bundle identifier is now `local.euclink`
+  and the signing certificate is "EucLink Dev". macOS treats EucLink as a new app, so you
+  run the setup guide once more. `uninstall.sh` removes the old Clicktalk app, its settings
+  and its permissions.
+- The README animation now shows three steps: Pair, Tap, Talk.
+
+### Added
+
+- A pre-built app for Apple silicon on each GitHub Release.
+- Tests for keystroke parsing and naming, run by `./build.sh ci`.
+- Continuous integration that builds the app and runs the tests on every push and pull request.
+- Contributing guide, code of conduct, security policy, and issue and pull request templates.
+
+## [0.2.0] - 2026-11-22
+
+### Added
+
+- EucLink holds the Bluetooth button itself and runs actions directly, so Karabiner-Elements
+  is no longer needed.
+- Actions: keystroke (press or hold for push-to-talk), toggle or open an app, run a Shortcut,
+  open a link, run a command.
+- A settings window and a nine-step setup guide that checks each permission.
+- Settings sealed with a keychain key, so bindings changed outside the app do not run.
+- Only the chosen Bluetooth button is opened.
+- Hardened runtime signing and `make-cert.sh` for a stable signing identity.
+- `uninstall.sh`.
+
+## [0.1.0] - 2026-11-22
+
+### Added
+
+- A menu bar app that watched a Bluetooth button and its Karabiner-Elements path, and
+  showed which part failed.

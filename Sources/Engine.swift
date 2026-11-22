@@ -1,13 +1,13 @@
-// Clicktalk engine: watches one Bluetooth button, grabs it, and runs actions.
+// EucLink engine: watches one Bluetooth button, grabs it, and runs actions.
 // No UI code lives here; the menu bar item, the window and the setup guide all
 // read `Monitor` and call its methods.
 //
 // Layers, top to bottom. The first failing layer becomes the status.
-//   0. Bluetooth permission for Clicktalk.
+//   0. Bluetooth permission for EucLink.
 //   1. Bluetooth radio on, button paired, button connected.
 //   2. macOS registered the button as an HID input device.
-//   3. Input Monitoring permission granted to Clicktalk.
-//   4. Clicktalk holds the device exclusively (seized), so its key never reaches macOS.
+//   3. Input Monitoring permission granted to EucLink.
+//   4. EucLink holds the device exclusively (seized), so its key never reaches macOS.
 //      Falls back to listening, where the original key also passes through.
 //   5. At least one binding: a learned button press mapped to an action.
 //   6. Accessibility permission, when an action presses keys.
@@ -127,9 +127,9 @@ struct Snapshot: Equatable {
     var accessibility = true
     var grab: GrabState = .idle
     var bindings: [ButtonBinding] = []
-    /// Bindings changed outside Clicktalk; they do not run until the owner approves them.
+    /// Bindings changed outside EucLink; they do not run until the owner approves them.
     var unapproved: [UUID] = []
-    /// False when the chosen button was changed outside Clicktalk.
+    /// False when the chosen button was changed outside EucLink.
     var deviceApproved = true
     var karabinerRunning = false
     var karabinerModifies = false
@@ -373,7 +373,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             self?.refresh()
         }
         RunLoop.main.add(timer!, forMode: .common)
-        log("Clicktalk started")
+        log("EucLink started")
         rebuildGrab()
         refresh()
     }
@@ -773,7 +773,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
             if !isApproved(b) {
-                outcome = "\(t.name): not run. This binding changed outside Clicktalk; review it under Bindings."
+                outcome = "\(t.name): not run. This binding changed outside EucLink; review it under Bindings."
             } else if b.action.kind == .keystroke && b.action.hold {
                 if AXIsProcessTrusted() {
                     heldKeys[t] = b.action
@@ -957,18 +957,18 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
 
     private func diagnose(_ s: inout Snapshot) {
         guard s.bluetoothAllowed else {
-            s.health = .bad; s.diagnosis = "Bluetooth access is off for Clicktalk"
-            s.hint = "Open Clicktalk > Permissions and allow Bluetooth."
+            s.health = .bad; s.diagnosis = "Bluetooth access is off for EucLink"
+            s.hint = "Open EucLink > Permissions and allow Bluetooth."
             return
         }
         guard s.deviceName != nil else {
             s.health = .unknown; s.diagnosis = "No button selected"
-            s.hint = "Open Clicktalk and choose your button."
+            s.hint = "Open EucLink and choose your button."
             return
         }
         guard s.deviceApproved else {
-            s.health = .warn; s.diagnosis = "Your button choice changed outside Clicktalk"
-            s.hint = "Clicktalk ignores it. Open Clicktalk > Button and choose your button again."
+            s.health = .warn; s.diagnosis = "Your button choice changed outside EucLink"
+            s.hint = "EucLink ignores it. Open EucLink > Button and choose your button again."
                 + (seal.lastError.map { " " + $0 } ?? "")
             return
         }
@@ -978,7 +978,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         }
         if !s.paired {
             s.health = .bad; s.diagnosis = "Button is not paired with this Mac"
-            s.hint = "Pair it in Bluetooth settings, then choose it in Clicktalk > Button."
+            s.hint = "Pair it in Bluetooth settings, then choose it in EucLink > Button."
             return
         }
         if !s.connected && !(sleeps && !deviceIdents.isEmpty) {
@@ -994,15 +994,15 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         }
         if !s.inputMonitoring || s.grab == .noPermission {
             s.health = .bad; s.diagnosis = "Input Monitoring permission missing"
-            s.hint = "Open Clicktalk > Permissions and allow Input Monitoring. Already on? Relaunch Clicktalk."
+            s.hint = "Open EucLink > Permissions and allow Input Monitoring. Already on? Relaunch EucLink."
             return
         }
         switch s.grab {
         case .failed(let e):
             s.health = .bad; s.diagnosis = "Could not open the button (\(hex(e)))"
             if e == kReturnNotPermitted {
-                s.hint = "macOS refused this process. Quit Clicktalk and relaunch; Input Monitoring "
-                    + "applies at launch. If it persists: tccutil reset ListenEvent local.clicktalk"
+                s.hint = "macOS refused this process. Quit EucLink and relaunch; Input Monitoring "
+                    + "applies at launch. If it persists: tccutil reset ListenEvent local.euclink"
             } else if e == kReturnExclusiveAccess {
                 s.hint = "Another app holds every interface. Quit Karabiner or the other app and relaunch."
             } else {
@@ -1013,9 +1013,9 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             s.health = .warn; s.diagnosis = "Listening, but the button's original key also reaches macOS"
             if s.karabinerModifies {
                 s.hint = "Karabiner holds this button. In Karabiner-Elements > Devices untick Modify events "
-                    + "for it, then relaunch Clicktalk."
+                    + "for it, then relaunch EucLink."
             } else if e == kReturnExclusiveAccess {
-                s.hint = "Another app holds the button exclusively. Quit it and relaunch Clicktalk."
+                s.hint = "Another app holds the button exclusively. Quit it and relaunch EucLink."
             } else {
                 s.hint = "Exclusive grab refused (\(hex(e))). Bindings still fire."
             }
@@ -1033,23 +1033,23 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         }
         if s.bindings.isEmpty {
             s.health = .warn; s.diagnosis = "Button grabbed, no action bound yet"
-            s.hint = "Open Clicktalk > Bindings, add a binding and press the button."
+            s.hint = "Open EucLink > Bindings, add a binding and press the button."
             return
         }
         if s.bindings.contains(where: { $0.action.kind == .none }) {
             s.health = .warn; s.diagnosis = "A binding has no action"
-            s.hint = "Open Clicktalk > Bindings and choose what it does."
+            s.hint = "Open EucLink > Bindings and choose what it does."
             return
         }
         if !s.unapproved.isEmpty {
-            s.health = .warn; s.diagnosis = "A binding changed outside Clicktalk"
-            s.hint = "It will not run until you review it. Open Clicktalk > Bindings to approve or remove it."
+            s.health = .warn; s.diagnosis = "A binding changed outside EucLink"
+            s.hint = "It will not run until you review it. Open EucLink > Bindings to approve or remove it."
                 + (seal.lastError.map { " " + $0 } ?? "")
             return
         }
         if !s.accessibility {
             s.health = .warn; s.diagnosis = "Accessibility permission missing for keystrokes"
-            s.hint = "Open Clicktalk > Permissions and allow Accessibility."
+            s.hint = "Open EucLink > Permissions and allow Accessibility."
             return
         }
         if s.grab == .seized {

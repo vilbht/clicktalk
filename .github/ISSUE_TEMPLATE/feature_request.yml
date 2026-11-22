@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest something EucLink should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The task, not the solution. For example "start dictation in two apps with one button".
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How EucLink could help. Optional.

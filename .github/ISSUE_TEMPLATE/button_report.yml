@@ -1,0 +1,31 @@
+name: Button report
+description: Tell us whether your Bluetooth button works with EucLink, so others can pick one.
+labels: [button-report]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Button name
+      description: As shown in Bluetooth settings, for example "AB Shutter3".
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: What it is
+      description: The kind of device and, if you like, where it is sold.
+  - type: dropdown
+    id: works
+    attributes:
+      label: Does it work?
+      options:
+        - Works
+        - Works with problems
+        - Does not work
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Which key it sends (step 5 of the guide), whether it sleeps between presses, anything odd.

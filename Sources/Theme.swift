@@ -38,7 +38,7 @@ enum PermState: Equatable {
         case .granted: return "Allowed"
         case .notDetermined: return "Not allowed yet"
         case .denied: return "Turned off in System Settings"
-        case .needsRelaunch: return "Allowed. Relaunch Clicktalk to use it"
+        case .needsRelaunch: return "Allowed. Relaunch EucLink to use it"
         }
     }
     var color: Color {
@@ -289,7 +289,7 @@ struct PulseRings: View {
     }
 }
 
-/// A drawn miniature of a System Settings privacy pane with Clicktalk switched on.
+/// A drawn miniature of a System Settings privacy pane with EucLink switched on.
 /// Drawn rather than screenshotted, so it fits light and dark mode and every macOS version.
 struct SettingsIllustration: View {
     let pane: String
@@ -329,13 +329,13 @@ struct SettingsIllustration: View {
                             row(app, on: false, highlight: false)
                             Divider()
                         }
-                        row("Clicktalk", on: true, highlight: true)
+                        row("EucLink", on: true, highlight: true)
                     }
                     .background(RoundedRectangle(cornerRadius: 8).fill(Brand.card))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Brand.stroke))
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.turn.left.up").foregroundStyle(Brand.accent)
-                        Text("Turn Clicktalk on").foregroundStyle(Brand.accent).fontWeight(.semibold)
+                        Text("Turn EucLink on").foregroundStyle(Brand.accent).fontWeight(.semibold)
                     }
                     .font(.system(size: 11))
                     .frame(maxWidth: .infinity, alignment: .trailing)

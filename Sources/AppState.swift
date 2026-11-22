@@ -231,7 +231,7 @@ final class AppState: ObservableObject {
     /// permissions to the app, so it is best done before granting any.
     func moveToApplications() {
         let src = Bundle.main.bundlePath
-        let dst = "/Applications/Clicktalk.app"
+        let dst = "/Applications/EucLink.app"
         let fm = FileManager.default
         do {
             if fm.fileExists(atPath: dst) { try fm.removeItem(atPath: dst) }
@@ -284,7 +284,7 @@ final class AppState: ObservableObject {
     func test(_ id: UUID) -> String? {
         guard let b = binding(id) else { return "binding not found" }
         guard monitor.isApproved(b) else {
-            return "This binding changed outside Clicktalk. Approve it before testing."
+            return "This binding changed outside EucLink. Approve it before testing."
         }
         let err = monitor.run(b.action)
         monitor.log(err.map { "Test failed: \($0)" } ?? "Tested \(b.action.name)")
@@ -495,7 +495,7 @@ final class AppState: ObservableObject {
         }
         if !s.inputMonitoring || s.grab == .noPermission {
             if inputMonitoringState == .needsRelaunch {
-                return ("Relaunch Clicktalk", { [weak self] in self?.relaunch() })
+                return ("Relaunch EucLink", { [weak self] in self?.relaunch() })
             }
             return ("Allow Input Monitoring", { [weak self] in self?.allowInputMonitoring() })
         }

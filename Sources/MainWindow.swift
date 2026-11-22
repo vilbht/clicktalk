@@ -1,4 +1,4 @@
-// The Clicktalk window: a sidebar and one page per area.
+// The EucLink window: a sidebar and one page per area.
 
 import AppKit
 import SwiftUI
@@ -46,7 +46,7 @@ struct Sidebar: View {
             HStack(spacing: 10) {
                 AppMark(size: 36)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Clicktalk").font(.system(size: 15, weight: .bold))
+                    Text("EucLink").font(.system(size: 15, weight: .bold))
                     HStack(spacing: 5) {
                         StatusDot(color: s.health.tint, size: 7)
                         Text(shortStatus(s)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
@@ -194,7 +194,7 @@ func chainNodes(_ s: Snapshot, sleeps: Bool) -> [FlowChain.Node] {
     return [
         .init(symbol: "dot.radiowaves.left.and.right", title: "Button", detail: btDetail, color: btColor),
         .init(symbol: "cpu", title: "macOS", detail: hidDetail, color: hidColor),
-        .init(symbol: "hand.raised.fill", title: "Clicktalk", detail: grabDetail, color: grabColor),
+        .init(symbol: "hand.raised.fill", title: "EucLink", detail: grabDetail, color: grabColor),
         .init(symbol: "arrow.triangle.branch", title: "Binding", detail: bindDetail, color: bindColor),
         .init(symbol: "bolt.fill", title: "Action", detail: actDetail, color: actColor),
     ]
@@ -245,7 +245,7 @@ struct OverviewPage: View {
                     Label("Karabiner-Elements is running", systemImage: "info.circle.fill")
                         .font(.system(size: 13, weight: .semibold))
                     Text(s.karabinerModifies
-                         ? "It claims your button. In Karabiner-Elements > Devices, turn off Modify events for it so Clicktalk can hold it."
+                         ? "It claims your button. In Karabiner-Elements > Devices, turn off Modify events for it so EucLink can hold it."
                          : "It leaves your button alone, so both can run.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
@@ -301,10 +301,10 @@ struct ButtonPage: View {
         let s = state.monitor.snapshot
         let devices = state.pairedDeviceList()
         VStack(alignment: .leading, spacing: 18) {
-            PageHeader(title: "Button", subtitle: "Choose the Bluetooth button Clicktalk listens to.")
+            PageHeader(title: "Button", subtitle: "Choose the Bluetooth button EucLink listens to.")
             if s.deviceName != nil && !s.deviceApproved {
                 Callout(symbol: "exclamationmark.shield.fill",
-                        text: "Your button choice changed outside Clicktalk, so Clicktalk ignores it. Choose your button again below.",
+                        text: "Your button choice changed outside EucLink, so EucLink ignores it. Choose your button again below.",
                         color: Brand.warn)
             }
             Card {
@@ -409,7 +409,7 @@ struct BindingsPage: View {
             if s.bindings.isEmpty && !state.isLearningNew {
                 Card {
                     Text("No bindings yet.").font(.system(size: 13, weight: .semibold))
-                    Text("Click Add Binding and press your button. Clicktalk learns which key it sends.")
+                    Text("Click Add Binding and press your button. EucLink learns which key it sends.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }
@@ -447,7 +447,7 @@ struct BindingCard: View {
             }
             if !approved {
                 Callout(symbol: "exclamationmark.shield.fill",
-                        text: "This binding changed outside Clicktalk, so it will not run. Check the action above. If you did not set it, remove it with the trash button and check your Mac for unwanted software.",
+                        text: "This binding changed outside EucLink, so it will not run. Check the action above. If you did not set it, remove it with the trash button and check your Mac for unwanted software.",
                         color: Brand.warn)
                 Button("Approve This Binding") { state.monitor.approve(binding.id) }
                     .buttonStyle(PrimaryButtonStyle())
@@ -486,7 +486,7 @@ struct PermissionRow: View {
                 PermStatus(state: state)
                 HStack(spacing: 12) {
                     if state == .needsRelaunch {
-                        Button("Relaunch Clicktalk", action: onRelaunch).buttonStyle(PrimaryButtonStyle())
+                        Button("Relaunch EucLink", action: onRelaunch).buttonStyle(PrimaryButtonStyle())
                     } else if state != .granted {
                         Button("Allow", action: onAllow).buttonStyle(PrimaryButtonStyle())
                     }
@@ -504,7 +504,7 @@ struct PermissionsPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PageHeader(title: "Permissions", subtitle: "macOS asks for each of these once. Clicktalk keeps working as long as they stay on.")
+            PageHeader(title: "Permissions", subtitle: "macOS asks for each of these once. EucLink keeps working as long as they stay on.")
             Card {
                 PermissionRow(symbol: "antenna.radiowaves.left.and.right", title: "Bluetooth",
                               why: "To see whether your button is connected or asleep.",
@@ -527,13 +527,13 @@ struct PermissionsPage: View {
             }
             Card {
                 SectionTitle(text: "Still not working?")
-                Text("macOS ties permissions to the exact app build. After an update it can show Clicktalk as allowed while ignoring it. Turn the switch off and on, then relaunch. If that fails, reset Clicktalk's entries and allow them again:")
+                Text("macOS ties permissions to the exact app build. After an update it can show EucLink as allowed while ignoring it. Turn the switch off and on, then relaunch. If that fails, reset EucLink's entries and allow them again:")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                CommandRow(command: "tccutil reset ListenEvent local.clicktalk")
-                CommandRow(command: "tccutil reset Accessibility local.clicktalk")
-                CommandRow(command: "tccutil reset BluetoothAlways local.clicktalk")
-                Button("Relaunch Clicktalk") { state.relaunch() }.buttonStyle(SecondaryButtonStyle())
+                CommandRow(command: "tccutil reset ListenEvent local.euclink")
+                CommandRow(command: "tccutil reset Accessibility local.euclink")
+                CommandRow(command: "tccutil reset BluetoothAlways local.euclink")
+                Button("Relaunch EucLink") { state.relaunch() }.buttonStyle(SecondaryButtonStyle())
             }
         }
     }
@@ -605,13 +605,13 @@ struct GeneralPage: View {
             PageHeader(title: "General", subtitle: "Startup, setup and about.")
             Card {
                 Toggle(isOn: Binding(get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) })) {
-                    SettingLabel(title: "Open Clicktalk at login", detail: "Recommended, so the button works right after you log in.")
+                    SettingLabel(title: "Open EucLink at login", detail: "Recommended, so the button works right after you log in.")
                 }
                 .toggleStyle(SwitchStyle())
             }
             if !state.isInApplications {
                 Card {
-                    Label("Clicktalk is not in Applications", systemImage: "exclamationmark.triangle.fill")
+                    Label("EucLink is not in Applications", systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.warn)
                     Text("Copy it to Applications so macOS keeps its permissions and Launch at login works.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
@@ -631,7 +631,7 @@ struct GeneralPage: View {
                 HStack(spacing: 14) {
                     AppMark(size: 48)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Clicktalk \(state.version)").font(.system(size: 14, weight: .semibold))
+                        Text("EucLink \(state.version)").font(.system(size: 14, weight: .semibold))
                         Text("Turn a Bluetooth button into a key for your Mac. MIT licensed.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                     }

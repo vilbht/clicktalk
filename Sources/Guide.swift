@@ -83,7 +83,7 @@ struct GuideFrame: View {
         switch step {
         case .welcome: return "Get Started"
         case .test: return ctx.testPassed ? "Continue" : "Skip Test"
-        case .done: return "Open Clicktalk"
+        case .done: return "Open EucLink"
         default: return "Continue"
         }
     }
@@ -180,7 +180,7 @@ struct PermissionStep: View {
             NumberedSteps(items: instructions)
             HStack(spacing: 14) {
                 if state == .needsRelaunch {
-                    Button("Relaunch Clicktalk", action: actions.relaunch).buttonStyle(PrimaryButtonStyle())
+                    Button("Relaunch EucLink", action: actions.relaunch).buttonStyle(PrimaryButtonStyle())
                 } else if state != .granted {
                     Button("Allow \(pane)", action: onAllow).buttonStyle(PrimaryButtonStyle())
                 }
@@ -209,22 +209,22 @@ struct GuideStepView: View {
         case .bluetooth:
             PermissionStep(
                 symbol: "antenna.radiowaves.left.and.right", title: "Allow Bluetooth",
-                why: "Clicktalk checks whether your button is connected or asleep. It does not scan for or connect to other devices.",
+                why: "EucLink checks whether your button is connected or asleep. It does not scan for or connect to other devices.",
                 pane: "Bluetooth", anchor: "Privacy_Bluetooth",
                 instructions: ["Click Allow Bluetooth below.",
                                "Choose Allow in the prompt macOS shows.",
-                               "Chose Don't Allow before? Open System Settings and turn Clicktalk on."],
+                               "Chose Don't Allow before? Open System Settings and turn EucLink on."],
                 state: ctx.bluetooth, actions: actions, onAllow: actions.allowBluetooth)
         case .pair: pair
         case .inputMonitoring:
             VStack(alignment: .leading, spacing: 18) {
                 PermissionStep(
                     symbol: "keyboard", title: "Allow Input Monitoring",
-                    why: "This lets Clicktalk read your button directly and keep its own key, such as Volume Up, from reaching other apps. Clicktalk only opens the button you chose.",
+                    why: "This lets EucLink read your button directly and keep its own key, such as Volume Up, from reaching other apps. EucLink only opens the button you chose.",
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
                     instructions: ["Click Allow Input Monitoring below.",
                                    "In the prompt, choose Open System Settings.",
-                                   "Turn Clicktalk on. If macOS asks to quit and reopen, choose Later and use Relaunch here."],
+                                   "Turn EucLink on. If macOS asks to quit and reopen, choose Later and use Relaunch here."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring)
                 grabStatus
             }
@@ -236,17 +236,17 @@ struct GuideStepView: View {
                     StepHeader(symbol: "accessibility", title: "Accessibility",
                                subtitle: "Only needed when the button presses keys for you.")
                     Callout(symbol: "checkmark.circle.fill",
-                            text: "Your action does not press keys, so Clicktalk does not need this permission. Continue.",
+                            text: "Your action does not press keys, so EucLink does not need this permission. Continue.",
                             color: Brand.good)
                 }
             } else {
             PermissionStep(
                 symbol: "accessibility", title: "Allow Accessibility",
-                why: "macOS requires this for any app that presses keys for you. Clicktalk only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
+                why: "macOS requires this for any app that presses keys for you. EucLink only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
                 pane: "Accessibility", anchor: "Privacy_Accessibility",
                 instructions: ["Click Allow Accessibility below.",
                                "In the prompt, choose Open System Settings.",
-                               "Turn Clicktalk on. This one works without a relaunch."],
+                               "Turn EucLink on. This one works without a relaunch."],
                 state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility)
             }
         case .test: test
@@ -259,7 +259,7 @@ struct GuideStepView: View {
     private var welcome: some View {
         VStack(spacing: 18) {
             AppMark(size: 88).padding(.top, 4)
-            Text("Welcome to Clicktalk").font(.system(size: 26, weight: .bold))
+            Text("Welcome to EucLink").font(.system(size: 26, weight: .bold))
             Text("Turn a Bluetooth button into a key for your Mac. Hold it to talk to your dictation app, tap it to summon a chat, or run any Shortcut.")
                 .font(.system(size: 14)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -276,7 +276,7 @@ struct GuideStepView: View {
             }
             if !ctx.inApplications {
                 Card {
-                    Label("Copy Clicktalk to Applications first", systemImage: "exclamationmark.triangle.fill")
+                    Label("Copy EucLink to Applications first", systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.warn)
                     Text("It is running from \(ctx.appFolder). macOS ties permissions to the app's location, so granting them here and moving it later means granting them again.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
@@ -369,7 +369,7 @@ struct GuideStepView: View {
             switch ctx.grab {
             case .seized:
                 Callout(symbol: "hand.raised.fill",
-                        text: "Clicktalk now holds \(ctx.selectedDevice ?? "your button"). Its own key no longer reaches other apps.",
+                        text: "EucLink now holds \(ctx.selectedDevice ?? "your button"). Its own key no longer reaches other apps.",
                         color: Brand.good)
             case .listening:
                 Callout(symbol: "exclamationmark.triangle.fill",
@@ -379,7 +379,7 @@ struct GuideStepView: View {
                         color: Brand.warn)
             case .idle:
                 Callout(symbol: "hand.point.up.left.fill",
-                        text: "Press your button once so Clicktalk can take hold of it.", color: Brand.accent)
+                        text: "Press your button once so EucLink can take hold of it.", color: Brand.accent)
             case .noPermission, .failed:
                 EmptyView()
             }
@@ -389,13 +389,13 @@ struct GuideStepView: View {
     private var learn: some View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(symbol: "hand.point.up.left.fill", title: "Press your button",
-                       subtitle: "Every clicker sends a different key. Clicktalk learns yours.")
+                       subtitle: "Every clicker sends a different key. EucLink learns yours.")
             VStack(spacing: 14) {
                 PulseRings(active: ctx.isLearning, done: ctx.trigger != nil && !ctx.isLearning,
                            label: ctx.isLearning ? "Waiting for a press…" : (ctx.trigger != nil ? "Got it" : "Not listening"))
                 if let t = ctx.trigger, !ctx.isLearning {
                     HStack(spacing: 8) {
-                        Text("Clicktalk heard").font(.system(size: 13)).foregroundStyle(.secondary)
+                        Text("EucLink heard").font(.system(size: 13)).foregroundStyle(.secondary)
                         KeyCaps(text: t.name)
                     }
                     Button("Learn Again", action: actions.learnAgain).buttonStyle(SecondaryButtonStyle())
@@ -455,7 +455,7 @@ struct GuideStepView: View {
                 Image(systemName: "checkmark").font(.system(size: 38, weight: .bold)).foregroundStyle(Brand.good)
             }
             Text("You're set").font(.system(size: 26, weight: .bold))
-            Text("Clicktalk lives in your menu bar. The dot shows its state, and clicking it shows the fix when something is off.")
+            Text("EucLink lives in your menu bar. The dot shows its state, and clicking it shows the fix when something is off.")
                 .font(.system(size: 14)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -468,7 +468,7 @@ struct GuideStepView: View {
             }
             Card {
                 Toggle(isOn: Binding(get: { ctx.launchAtLogin }, set: { actions.setLaunchAtLogin($0) })) {
-                    SettingLabel(title: "Open Clicktalk at login", detail: "Recommended, so the button works right after you log in.")
+                    SettingLabel(title: "Open EucLink at login", detail: "Recommended, so the button works right after you log in.")
                 }
                 .toggleStyle(SwitchStyle())
             }

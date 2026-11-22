@@ -1,0 +1,8 @@
+# EucLink uses only Apple's system frameworks. The one set of outside code it depends
+# on is the GitHub Actions in .github/workflows, so Dependabot watches those.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
