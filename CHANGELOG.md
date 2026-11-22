@@ -14,7 +14,7 @@ All notable changes to EucLink are listed here. The format follows
   and the signing certificate is "EucLink Dev". macOS treats EucLink as a new app, so you
   run the setup guide once more. `uninstall.sh` removes the old Clicktalk app, its settings
   and its permissions.
-- The README animation now shows three steps: Pair, Tap, Talk.
+- The README shows the EucLink logo and three animations in a row: Pair, Tap, Talk.
 
 ### Added
 

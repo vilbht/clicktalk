@@ -1,9 +1,18 @@
-# EucLink
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png">
+    <img src="docs/images/logo.png" width="360" alt="EucLink">
+  </picture>
+</p>
 
-Turn a cheap Bluetooth button into a key for your Mac. Hold it to talk to your dictation app,
-tap it to summon a chat app, or run any Shortcut.
+<p align="center">Turn a cheap Bluetooth button into a key for your Mac. Hold it to talk to your dictation app,
+tap it to summon a chat app, or run any Shortcut.</p>
 
-<p align="center"><img src="docs/images/hero.gif" width="820" alt="Three steps. Pair: the button's blue light blinks and it connects to EucLink. Tap: press the button and EucLink starts listening. Talk: your words appear in the text box."></p>
+<p align="center">
+  <img src="docs/images/step-1.gif" width="32%" alt="Pair: the button's blue light blinks and it connects to EucLink">
+  <img src="docs/images/step-2.gif" width="32%" alt="Tap: press the button and EucLink starts listening">
+  <img src="docs/images/step-3.gif" width="32%" alt="Talk: your words appear in the text box">
+</p>
 
 EucLink is a small menu bar app. It takes hold of your Bluetooth clicker, so the key the clicker
 sends (often Volume Up) never reaches other apps. Then it runs the action you chose. A setup
