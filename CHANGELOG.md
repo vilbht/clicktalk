@@ -10,6 +10,9 @@ All notable changes to EucLink are listed here. The format follows
 
 - The drag-to-add picture is animated: the hand cursor grabs the EucLink icon, carries it to
   the empty slot in the System Settings list, and lets go.
+- In that picture the System Settings list shows an empty Drop EucLink here slot instead of
+  EucLink already in place.
+- The README's steps 4 and 7 describe the drag-to-add and + routes.
 
 ## [0.4.6] - 2026-11-22
 
