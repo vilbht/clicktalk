@@ -215,6 +215,13 @@ struct PermissionStep: View {
                             .frame(maxWidth: 400)
                     }
                     .frame(maxWidth: .infinity)
+                    .overlayPreferenceValue(DragAnchorKey.self) { anchors in
+                        GeometryReader { g in
+                            if let from = anchors["from"], let to = anchors["to"] {
+                                DragDemo(from: g[from], to: g[to])
+                            }
+                        }
+                    }
                 }
             } else {
                 SettingsIllustration(pane: pane)

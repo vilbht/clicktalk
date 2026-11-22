@@ -376,6 +376,7 @@ struct SettingsIllustration: View {
         .background(Brand.accent.opacity(0.06))
         .overlay(RoundedRectangle(cornerRadius: 6)
             .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])).padding(2))
+        .anchorPreference(key: DragAnchorKey.self, value: .center) { ["to": $0] }
     }
 
     private func row(_ name: String, on: Bool, highlight: Bool) -> some View {
@@ -437,6 +438,7 @@ struct DragAppTile: View {
     var body: some View {
         VStack(spacing: 8) {
             AppMark(size: 58)
+                .anchorPreference(key: DragAnchorKey.self, value: .center) { ["from": $0] }
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
@@ -446,5 +448,65 @@ struct DragAppTile: View {
                 .font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
         }
         .frame(width: 120)
+    }
+}
+
+/// Where the drag demonstration starts (the EucLink tile) and ends (the drop slot).
+struct DragAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGPoint>] = [:]
+    static func reduce(value: inout [String: Anchor<CGPoint>], nextValue: () -> [String: Anchor<CGPoint>]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+/// A looping demonstration of the drag, drawn over the tile and the System Settings
+/// drawing: the open-hand cursor reaches the icon, closes into a fist, carries a ghost
+/// of the icon to the drop slot and lets go. It ignores the mouse, so the real tile
+/// underneath stays draggable.
+struct DragDemo: View {
+    let from: CGPoint
+    let to: CGPoint
+    private let period = 3.0
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+            let start = CGPoint(x: from.x - 40, y: from.y + 46)
+            // 0-0.18 reach the icon, 0.18-0.26 grab, 0.26-0.72 carry, 0.72-0.80 drop, then rest.
+            let reach = ease(clamp((t - 0.0) / 0.18))
+            let carry = ease(clamp((t - 0.26) / 0.46))
+            let p: CGPoint = t < 0.26
+                ? mix(start, from, reach)
+                : mix(from, to, carry)
+            let holding = t >= 0.18 && t < 0.76
+            let fade = t < 0.9 ? 1.0 : 1 - clamp((t - 0.9) / 0.1)
+            let flash = t >= 0.74 && t < 0.92 ? 1 - clamp((t - 0.74) / 0.18) : 0
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Brand.accent.opacity(0.25 * flash))
+                    .frame(width: 170, height: 30)
+                    .position(to)
+                if holding {
+                    AppMark(size: 34)
+                        .opacity(0.75)
+                        .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                        .position(x: p.x, y: p.y)
+                }
+                Image(nsImage: (holding ? NSCursor.closedHand : NSCursor.openHand).image)
+                    .resizable()
+                    .frame(width: 22, height: 22)
+                    .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+                    .position(x: p.x + 6, y: p.y + 6)
+                    .opacity(fade)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func clamp(_ x: Double) -> Double { min(1, max(0, x)) }
+    private func ease(_ x: Double) -> Double { x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2 }
+    private func mix(_ a: CGPoint, _ b: CGPoint, _ k: Double) -> CGPoint {
+        CGPoint(x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k)
     }
 }

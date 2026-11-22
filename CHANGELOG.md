@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The drag-to-add picture is animated: the hand cursor grabs the EucLink icon, carries it to
+  the empty slot in the System Settings list, and lets go.
+
 ## [0.4.6] - 2026-11-22
 
 ### Changed
