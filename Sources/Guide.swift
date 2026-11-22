@@ -25,6 +25,10 @@ struct GuideWindowView: View {
         .onAppear {
             state.startTicking()
             state.enteredStep()
+            state.resumeGuideAfterRelaunch()
+        }
+        .onChange(of: state.isStepComplete(ctx)) { complete in
+            if complete { state.stepCompleted() }
         }
     }
 }
@@ -63,9 +67,9 @@ struct GuideFrame: View {
                 if step != .done {
                     Button("Finish later", action: onLater).buttonStyle(TextLinkStyle())
                 }
-                Button(nextTitle) { step == .done ? onFinish() : onNext() }
+                Button(primary.title, action: primary.run)
                     .buttonStyle(PrimaryButtonStyle())
-                    .disabled(!canContinue)
+                    .disabled(!primary.enabled)
             }
             .padding(.horizontal, 24).padding(.vertical, 14)
         }
@@ -79,12 +83,30 @@ struct GuideFrame: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var nextTitle: String {
+    /// The one main button. It is the step's own action until the step is done; the step
+    /// then moves on by itself, and the button reads Continue for anyone who came back.
+    private var primary: (title: String, enabled: Bool, run: () -> Void) {
+        func permission(_ state: PermState, _ title: String, _ allow: @escaping () -> Void)
+            -> (title: String, enabled: Bool, run: () -> Void) {
+            switch state {
+            case .granted: return ("Continue", true, onNext)
+            case .needsRelaunch: return ("Restarting EucLink…", false, {})
+            default: return (title, true, allow)
+            }
+        }
         switch step {
-        case .welcome: return "Get Started"
-        case .test: return ctx.testPassed ? "Continue" : "Skip Test"
-        case .done: return "Open EucLink"
-        default: return "Continue"
+        case .welcome: return ("Get Started", true, onNext)
+        case .bluetooth: return permission(ctx.bluetooth, "Allow Bluetooth", actions.allowBluetooth)
+        case .pair: return (canContinue ? "Continue" : "Choose Your Button Above", canContinue, onNext)
+        case .inputMonitoring:
+            return permission(ctx.inputMonitoring, "Allow Input Monitoring", actions.allowInputMonitoring)
+        case .learn: return (canContinue ? "Continue" : "Press Your Button", canContinue, onNext)
+        case .action: return ("Continue", canContinue, onNext)
+        case .accessibility:
+            if !ctx.needsAccessibility { return ("Continue", true, onNext) }
+            return permission(ctx.accessibility, "Allow Accessibility", actions.allowAccessibility)
+        case .test: return (ctx.testPassed ? "Continue" : "Skip Test", true, onNext)
+        case .done: return ("Open EucLink", true, onFinish)
         }
     }
 }
@@ -177,16 +199,36 @@ struct PermissionStep: View {
     var onReset: (() -> Void)? = nil
     /// Shows the drag tile and the + button, for permissions macOS may not list by itself.
     var dragToAdd = false
+    /// Which of the three permissions are allowed, and which one this step is.
+    var done: [Bool] = [false, false, false]
+    var index = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             StepHeader(symbol: symbol, title: title, subtitle: why)
+            PermissionTracker(done: done, current: index)
+            if state == .granted {
+                let count = done.filter { $0 }.count
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle().fill(Brand.good).frame(width: 46, height: 46)
+                        Image(systemName: "checkmark").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(pane) allowed").font(.system(size: 17, weight: .bold))
+                        Text(count >= 3 ? "All 3 permissions done." : "\(count) of 3 permissions done.")
+                            .font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Brand.good.opacity(0.1)))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Brand.good.opacity(0.35)))
+            } else {
             NumberedSteps(items: instructions)
             HStack(spacing: 14) {
                 if state == .needsRelaunch {
-                    Button("Relaunch EucLink", action: actions.relaunch).buttonStyle(PrimaryButtonStyle())
-                } else if state != .granted {
-                    Button("Allow \(pane)", action: onAllow).buttonStyle(PrimaryButtonStyle())
+                    Button("Relaunch EucLink", action: actions.relaunch).buttonStyle(SecondaryButtonStyle())
                 }
                 Button("Open System Settings") { actions.openPrivacyPane(anchor) }.buttonStyle(TextLinkStyle())
                 Spacer()
@@ -230,7 +272,7 @@ struct PermissionStep: View {
                 SettingsIllustration(pane: pane)
                     .frame(maxWidth: 460)
                     .frame(maxWidth: .infinity)
-                    .opacity(state == .granted ? 0.5 : 1)
+            }
             }
         }
     }
@@ -251,11 +293,12 @@ struct GuideStepView: View {
                 symbol: "antenna.radiowaves.left.and.right", title: "Allow Bluetooth",
                 why: "EucLink checks whether your button is connected or asleep. It does not scan for or connect to other devices.",
                 pane: "Bluetooth", anchor: "Privacy_Bluetooth",
-                instructions: ["Click Allow Bluetooth below.",
+                instructions: ["Click Allow Bluetooth at the bottom of this window.",
                                "Choose Allow in the prompt macOS shows.",
                                "Chose Don't Allow before? Open System Settings and turn EucLink on."],
                 state: ctx.bluetooth, actions: actions, onAllow: actions.allowBluetooth,
-                onReset: ctx.bluetooth == .denied ? { actions.resetPermission("BluetoothAlways") } : nil)
+                onReset: ctx.bluetooth == .denied ? { actions.resetPermission("BluetoothAlways") } : nil,
+                done: ctx.permissionsDone, index: 0)
         case .pair: pair
         case .inputMonitoring:
             VStack(alignment: .leading, spacing: 18) {
@@ -263,12 +306,12 @@ struct GuideStepView: View {
                     symbol: "keyboard", title: "Allow Input Monitoring",
                     why: "This lets EucLink read your button directly and keep its own key, such as Volume Up, from reaching other apps. EucLink only opens the button you chose.",
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
-                    instructions: ["Click Allow Input Monitoring below. System Settings opens.",
+                    instructions: ["Click Allow Input Monitoring at the bottom of this window. System Settings opens.",
                                    "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
                                    "Turn EucLink on. EucLink restarts by itself to use it."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
                     onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil,
-                    dragToAdd: true)
+                    dragToAdd: true, done: ctx.permissionsDone, index: 1)
                 if ctx.resetKeptInputMonitoring {
                     Callout(symbol: "hand.raised.fill",
                             text: "macOS kept EucLink's Input Monitoring switch, which happens when EucLink was added with +. "
@@ -299,13 +342,13 @@ struct GuideStepView: View {
                 symbol: "accessibility", title: "Allow Accessibility",
                 why: "macOS requires this for any app that presses keys for you. EucLink only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
                 pane: "Accessibility", anchor: "Privacy_Accessibility",
-                instructions: ["Click Allow Accessibility below. System Settings opens.",
+                instructions: ["Click Allow Accessibility at the bottom of this window. System Settings opens.",
                                "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
                                "Turn EucLink on. This one works without a relaunch."],
                 state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility,
                 onReset: ctx.accessibilityTried && ctx.accessibility != .granted
                     ? { actions.resetPermission("Accessibility") } : nil,
-                dragToAdd: true)
+                dragToAdd: true, done: ctx.permissionsDone, index: 2)
             }
         case .test: test
         case .done: done
@@ -313,6 +356,8 @@ struct GuideStepView: View {
     }
 
     private func relaunchSoon() {
+        // After the restart the guide shows this step as done for a moment, then moves on.
+        UserDefaults.standard.set(true, forKey: "guideAdvanceOnLaunch")
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { actions.relaunch() }
     }
 
@@ -548,6 +593,56 @@ struct GuideStepView: View {
             }
             .frame(width: 32, alignment: .leading)
             Text(text).font(.system(size: 12))
+        }
+    }
+}
+
+/// The three permissions as a row of chips with a count, so progress is plain to see:
+/// a green tick for each one allowed, a ring around the one this step asks for.
+struct PermissionTracker: View {
+    let done: [Bool]
+    let current: Int
+    private let names = ["Bluetooth", "Input Monitoring", "Accessibility"]
+
+    var body: some View {
+        let count = done.filter { $0 }.count
+        VStack(alignment: .leading, spacing: 9) {
+            HStack {
+                Text("PERMISSIONS").font(.system(size: 10, weight: .bold)).tracking(0.8)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(count) of 3 done").font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(count >= 3 ? Brand.good : Brand.accent)
+            }
+            HStack(spacing: 8) {
+                ForEach(0..<3, id: \.self) { i in
+                    let isDone = i < done.count && done[i]
+                    let isCurrent = i == current && !isDone
+                    HStack(spacing: 7) {
+                        ZStack {
+                            Circle()
+                                .fill(isDone ? Brand.good : (isCurrent ? Brand.accent.opacity(0.15) : Color.primary.opacity(0.07)))
+                                .frame(width: 22, height: 22)
+                            if isDone {
+                                Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                            } else {
+                                Text("\(i + 1)").font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(isCurrent ? Brand.accent : Color.secondary)
+                            }
+                        }
+                        Text(names[i]).font(.system(size: 12, weight: isCurrent || isDone ? .semibold : .regular))
+                            .foregroundStyle(isDone ? Brand.good : (isCurrent ? Color.primary : Color.secondary))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isDone ? Brand.good.opacity(0.1) : Brand.card))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(isCurrent ? Brand.accent : (isDone ? Brand.good.opacity(0.35) : Brand.stroke),
+                                lineWidth: isCurrent ? 1.5 : 1))
+                }
+            }
         }
     }
 }

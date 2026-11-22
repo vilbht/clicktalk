@@ -6,6 +6,16 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The guide has one main button per step, and it is the step's own action: Allow Bluetooth,
+  Allow Input Monitoring, Allow Accessibility. When the step is done, the guide shows the
+  result and moves to the next step by itself. Choosing your button, the first press and the
+  test move on the same way.
+- Permission steps show a tracker with the three permissions and "1 of 3 done", and a green
+  confirmation when one is allowed.
+- Open EucLink at login is on by default. The switch on the last step turns it off.
+
 ## [0.4.11] - 2026-11-22
 
 ### Changed

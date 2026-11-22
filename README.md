@@ -139,8 +139,10 @@ first launch. Building it yourself avoids the Gatekeeper warning and works on In
 
 ## Set up, step by step
 
-The guide has nine steps. Each one checks itself, and **Continue** lights up as soon as macOS
-reports the step done. You can close the guide and pick up later from the menu bar dot under
+The guide has nine steps, with one main button on each: the step's own action, such as
+**Allow Bluetooth**. When macOS reports the step done, the guide shows a green confirmation
+and moves to the next step by itself. Permission steps show a tracker: 1 of 3 done, 2 of 3
+done, 3 of 3 done. You can close the guide and pick up later from the menu bar dot under
 **Setup Guide**.
 
 ### 1. Welcome
@@ -225,7 +227,8 @@ check that the recorded shortcut matches the target app's global shortcut.
 
 ### 9. Done
 
-Turn on **Open EucLink at login** so the button works right after you log in.
+**Open EucLink at login** is on by default, so the button works right after you log in. Turn
+it off here if you prefer to start EucLink yourself.
 
 <p align="center"><img src="docs/images/step-9-done.png" width="480" alt="Setup done"></p>
 

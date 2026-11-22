@@ -101,6 +101,10 @@ struct GuideContext {
     /// after the normal way has had its chance.
     var accessibilityTried = false
     var resetKeptInputMonitoring = false
+    /// Bluetooth, Input Monitoring, Accessibility: which are allowed.
+    var permissionsDone: [Bool] {
+        [bluetooth == .granted, inputMonitoring == .granted, accessibility == .granted]
+    }
     var testPassed = false
     var lastOutcome: String?
     var launchAtLogin = false
@@ -575,9 +579,55 @@ final class AppState: ObservableObject {
             if guideBinding == nil { startGuideLearning() }
         case .test:
             testStartedAt = Date()
+        case .done:
+            if monitor.learning { cancelLearning() }
+            // Open at login is on by default, once. The switch on this step turns it off.
+            if !UserDefaults.standard.bool(forKey: "loginDefaultApplied") {
+                UserDefaults.standard.set(true, forKey: "loginDefaultApplied")
+                if !launchAtLogin { setLaunchAtLogin(true) }
+            }
         default:
             if monitor.learning { cancelLearning() }
         }
+        // A step moves on by itself only if it was still open when the owner arrived.
+        // Coming back to a finished step shows Continue instead of bouncing forward.
+        autoArmed = selfCompletingSteps.contains(step) && !isStepComplete(guideContext())
+    }
+
+    // MARK: steps that finish themselves
+
+    /// Steps whose own action completes them: the three permissions, choosing the button,
+    /// the first press and the test. Choosing an action is left out, because it is edited.
+    private var selfCompletingSteps: [GuideStep] {
+        [.bluetooth, .pair, .inputMonitoring, .learn, .accessibility, .test]
+    }
+    private var autoArmed = false
+
+    func isStepComplete(_ c: GuideContext) -> Bool {
+        step == .test ? c.testPassed : canContinue(c)
+    }
+
+    /// Called when the current step turns complete. Shows the result for a moment, then
+    /// goes to the next step.
+    func stepCompleted() {
+        guard autoArmed else { return }
+        autoArmed = false
+        advanceSoon(from: step)
+    }
+
+    private func advanceSoon(from: GuideStep) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if self.step == from, self.isStepComplete(self.guideContext()) { self.nextStep() }
+        }
+    }
+
+    /// Input Monitoring needs a restart. After it, the guide reopens on that step, shows
+    /// it as done, and moves on like the other steps.
+    func resumeGuideAfterRelaunch() {
+        guard UserDefaults.standard.bool(forKey: "guideAdvanceOnLaunch") else { return }
+        UserDefaults.standard.removeObject(forKey: "guideAdvanceOnLaunch")
+        if step == .inputMonitoring, isStepComplete(guideContext()) { advanceSoon(from: step) }
     }
 
     func finishGuide() {
