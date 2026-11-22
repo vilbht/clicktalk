@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-22
+
 ### Added
 
 - Reset and Try Again on the guide's permission steps. When macOS shows EucLink as allowed
