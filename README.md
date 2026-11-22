@@ -31,7 +31,9 @@ The first menu line is the diagnosis. The second is the fix.
    connect and disconnect notifications plus a 3 second poll.
 2. macOS sees the button as an HID device over Bluetooth, matched by product name or by
    serial equal to the Bluetooth address. Shows kind (keyboard, pointer) and vendor:product.
-3. `karabiner_grabber` and `karabiner_console_user_server` are in the process list.
+3. Karabiner's core service and console user server are in the process list. Both the
+   Karabiner 15 names (`Karabiner-Core-Service`, `Karabiner-Console-User-Server`) and the
+   older ones (`karabiner_grabber`, `karabiner_console_user_server`) are recognised.
 4. `~/.config/karabiner/karabiner.json`, selected profile, has a `devices` entry for the
    button's vendor and product ID with `ignore: false`. A missing entry on a pointer-only
    device is flagged, since Karabiner ignores pointing devices by default.
@@ -57,4 +59,4 @@ The first menu line is the diagnosis. The second is the fix.
 
 Input Monitoring permission for Karabiner. Apple does not expose another app's TCC grant.
 If everything is green and a rule still does not fire, open the Input Monitoring pane from
-the menu and confirm karabiner_grabber is allowed.
+the menu and confirm Karabiner's core service is allowed.

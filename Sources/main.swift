@@ -4,7 +4,7 @@
 // Layers it checks, top to bottom:
 //   1. Bluetooth radio on, button paired, button connected.
 //   2. macOS registered the button as an HID input device (keyboard / pointer).
-//   3. karabiner_grabber and karabiner_console_user_server are running.
+//   3. Karabiner's core service (grabber) and console user server are running.
 //   4. karabiner.json has the device with "Modify events" on (ignore == false).
 // The first failing layer becomes the diagnosis in the menu and the dot colour.
 
@@ -318,10 +318,13 @@ final class Monitor: NSObject {
         s.address = device?.addressString
         s.hid = hidDevices().filter { matches($0, device: device, name: s.deviceName) }
         let procs = processNames()
-        s.grabberRunning = procs.contains { $0.hasSuffix("/karabiner_grabber") || $0 == "karabiner_grabber" }
-        s.userServerRunning = procs.contains {
-            $0.hasSuffix("/karabiner_console_user_server") || $0 == "karabiner_console_user_server"
+        // Karabiner 15 renamed karabiner_grabber to Karabiner-Core-Service and
+        // karabiner_console_user_server to Karabiner-Console-User-Server. Accept both.
+        func running(_ names: [String]) -> Bool {
+            procs.contains { p in names.contains { p.hasSuffix("/" + $0) || p == $0 } }
         }
+        s.grabberRunning = running(["karabiner_grabber", "Karabiner-Core-Service"])
+        s.userServerRunning = running(["karabiner_console_user_server", "Karabiner-Console-User-Server"])
         s.modify = modifyState(hid: s.hid)
         if let name = s.deviceName { s.grabberLogLine = grabberLogLine(matching: name) }
         diagnose(&s)
@@ -361,7 +364,7 @@ final class Monitor: NSObject {
             return
         }
         if !s.grabberRunning {
-            s.health = .bad; s.diagnosis = "karabiner_grabber is not running"
+            s.health = .bad; s.diagnosis = "Karabiner core service (grabber) is not running"
             s.hint = "Use Restart Karabiner daemons, or open Karabiner-Elements."
             return
         }
@@ -417,7 +420,7 @@ final class Monitor: NSObject {
             }
         }
         if old.grabberRunning != new.grabberRunning {
-            log(new.grabberRunning ? "karabiner_grabber started" : "karabiner_grabber stopped")
+            log(new.grabberRunning ? "Karabiner core service started" : "Karabiner core service stopped")
         }
         if old.userServerRunning != new.userServerRunning {
             log(new.userServerRunning ? "Karabiner user agent started" : "Karabiner user agent stopped")
@@ -529,11 +532,11 @@ final class Monitor: NSObject {
     func restartKarabiner() {
         log("Karabiner restart requested")
         let daemons = """
-        for l in $(launchctl list | awk '/karabiner_grabber|karabiner_session_monitor|VirtualHIDDevice-Daemon/ {print $3}'); do \
+        for l in $(launchctl list | awk 'tolower($3) ~ /karabiner/ && $3 !~ /console_user_server|Console-User-Server/ {print $3}'); do \
         launchctl kickstart -k system/$l; done
         """
         let agents = """
-        uid=$(id -u); for l in $(launchctl list | awk '/karabiner_console_user_server|karabiner_grabber|karabiner_session_monitor/ {print $3}'); do \
+        uid=$(id -u); for l in $(launchctl list | awk 'tolower($3) ~ /karabiner/ {print $3}'); do \
         launchctl kickstart -k gui/$uid/$l; done
         """
         DispatchQueue.global().async { [weak self] in
@@ -660,7 +663,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 menu.addItem(info("Input device: \(h.kind) \(h.idString) via \(h.transport)"))
             }
         }
-        menu.addItem(info("Karabiner grabber: \(s.grabberRunning ? "running" : "NOT running")"))
+        menu.addItem(info("Karabiner core service: \(s.grabberRunning ? "running" : "NOT running")"))
         menu.addItem(info("Karabiner user agent: \(s.userServerRunning ? "running" : "NOT running")"))
         let modify: String
         switch s.modify {
