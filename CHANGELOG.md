@@ -6,6 +6,12 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The Input Monitoring and Accessibility steps are more visual. If EucLink is missing from
+  the list in System Settings, drag the EucLink icon from the guide straight into the list.
+  The drawing also marks the + button as the other way in.
+
 ## [0.4.5] - 2026-11-22
 
 ### Fixed

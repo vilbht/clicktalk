@@ -294,6 +294,8 @@ struct PulseRings: View {
 struct SettingsIllustration: View {
     let pane: String
     var otherApps: [String] = ["Terminal", "Raycast"]
+    /// Draws the + and - buttons under the list, with + marked, for the add-by-hand route.
+    var showAddBar = false
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -333,6 +335,16 @@ struct SettingsIllustration: View {
                     }
                     .background(RoundedRectangle(cornerRadius: 8).fill(Brand.card))
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Brand.stroke))
+                    if showAddBar {
+                        HStack(spacing: 0) {
+                            Text("+").font(.system(size: 12, weight: .bold)).foregroundStyle(Brand.accent)
+                                .frame(width: 22, height: 18)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Brand.accent, lineWidth: 1.5))
+                            Text("−").font(.system(size: 12)).foregroundStyle(.secondary)
+                                .frame(width: 22, height: 18)
+                            Spacer()
+                        }
+                    }
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.turn.left.up").foregroundStyle(Brand.accent)
                         Text("Turn EucLink on").foregroundStyle(Brand.accent).fontWeight(.semibold)
@@ -399,5 +411,23 @@ struct FlowChain: View {
                 }
             }
         }
+    }
+}
+
+/// The real app, as a tile the user can drag into a System Settings privacy list.
+/// It carries the app's file URL, like dragging EucLink from Applications in Finder.
+struct DragAppTile: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            AppMark(size: 58)
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+                .onDrag { NSItemProvider(contentsOf: Bundle.main.bundleURL) ?? NSItemProvider() }
+                .help("Drag EucLink into the list in System Settings")
+            Text("Drag me into the list")
+                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
+        }
+        .frame(width: 120)
     }
 }

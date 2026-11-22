@@ -175,6 +175,8 @@ struct PermissionStep: View {
     let onAllow: () -> Void
     /// Set when the switch may belong to another copy of EucLink.
     var onReset: (() -> Void)? = nil
+    /// Shows the drag tile and the + button, for permissions macOS may not list by itself.
+    var dragToAdd = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -200,6 +202,20 @@ struct PermissionStep: View {
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Brand.warn.opacity(0.1)))
+            } else if dragToAdd && state != .granted {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("NOT IN THE LIST? DRAG EUCLINK IN, OR CLICK + AND CHOOSE IT FROM APPLICATIONS")
+                        .font(.system(size: 10, weight: .bold)).tracking(0.6).foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: 10) {
+                        DragAppTile()
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(Brand.gradient)
+                        SettingsIllustration(pane: pane, showAddBar: true)
+                            .frame(maxWidth: 400)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
             } else {
                 SettingsIllustration(pane: pane)
                     .frame(maxWidth: 460)
@@ -238,10 +254,11 @@ struct GuideStepView: View {
                     why: "This lets EucLink read your button directly and keep its own key, such as Volume Up, from reaching other apps. EucLink only opens the button you chose.",
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
                     instructions: ["Click Allow Input Monitoring below. System Settings opens.",
-                                   "Turn EucLink on. EucLink restarts by itself to use it.",
-                                   "Not in the list? Click + below the list, open Applications and choose EucLink."],
+                                   "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
+                                   "Turn EucLink on. EucLink restarts by itself to use it."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
-                    onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil)
+                    onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil,
+                    dragToAdd: true)
                 if ctx.resetKeptInputMonitoring {
                     Callout(symbol: "hand.raised.fill",
                             text: "macOS kept EucLink's Input Monitoring switch, which happens when EucLink was added with +. "
@@ -272,12 +289,13 @@ struct GuideStepView: View {
                 symbol: "accessibility", title: "Allow Accessibility",
                 why: "macOS requires this for any app that presses keys for you. EucLink only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
                 pane: "Accessibility", anchor: "Privacy_Accessibility",
-                instructions: ["Click Allow Accessibility below.",
-                               "In the prompt, choose Open System Settings.",
+                instructions: ["Click Allow Accessibility below. System Settings opens.",
+                               "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
                                "Turn EucLink on. This one works without a relaunch."],
                 state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility,
                 onReset: ctx.accessibilityTried && ctx.accessibility != .granted
-                    ? { actions.resetPermission("Accessibility") } : nil)
+                    ? { actions.resetPermission("Accessibility") } : nil,
+                dragToAdd: true)
             }
         case .test: test
         case .done: done
