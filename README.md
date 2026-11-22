@@ -28,11 +28,14 @@ EucLink was built and tested with a cheap Bluetooth camera-shutter remote like t
 the kind sold for taking selfies with a phone. Presentation clickers and other small Bluetooth
 remotes work the same way.
 
-In the screenshots below the remote appears as **BT1818**. That is the name its Bluetooth chip
-reports when it pairs, so it is what you see in Bluetooth settings and in EucLink's list of
-devices. macOS treats the remote as an HID device: a tiny keyboard that sends one key, usually
-Volume Up. Your remote may report a different name, such as AB Shutter3. EucLink does not care
-about the name or the key; it learns whichever your remote sends.
+A remote like this reports a short name when it pairs, for example **BT1818** or **AB Shutter3**.
+That name is what you see in Bluetooth settings and in EucLink's list of devices. macOS treats
+the remote as an HID device: a tiny keyboard that sends one key, usually Volume Up. EucLink
+does not care about the name or the key; it learns whichever your remote sends.
+
+The setup pictures below are drawn by the app itself with sample data, so the remote there is
+called AB Shutter3. Buttons and switches look slightly different on your Mac, where they follow
+your macOS version.
 
 ## What EucLink does, and what it needs
 
@@ -156,16 +159,20 @@ first. macOS ties permissions to the app's location, so do this before granting 
 
 ### 2. Allow Bluetooth
 
-Click **Allow Bluetooth**, then **Allow** in the macOS prompt. EucLink only uses this to see
-whether your button is connected or asleep.
+Click **Allow Bluetooth**, the main button at the bottom, then **Allow** in the macOS prompt.
+EucLink only uses this to see whether your button is connected or asleep.
 
-<p align="center"><img src="docs/images/step-2-bluetooth.png" width="480" alt="Allow Bluetooth"></p>
+<p align="center"><img src="docs/images/step-2-bluetooth.png" width="480" alt="Allow Bluetooth: the main button reads Allow Bluetooth"></p>
+
+A green card confirms it and counts the permissions done. Click **Continue**.
+
+<p align="center"><img src="docs/images/step-2-bluetooth-allowed.png" width="480" alt="Bluetooth allowed, 1 of 3 permissions done; the main button reads Continue"></p>
 
 
 ### 3. Choose your button
 
 Press your button once. Most clickers connect only when pressed, so it moves to **Connected now**.
-Select it. Here the remote is **BT1818**; the names of other paired devices are blurred.
+Select it, then click **Continue**. The picture shows sample devices.
 
 <p align="center"><img src="docs/images/step-3-button.png" width="480" alt="Choose your button"></p>
 
@@ -187,7 +194,7 @@ When the step is done, a green note says that EucLink now holds your button.
 Press the button once. EucLink learns which key the button sends, for example Volume Up, and shows
 its name. Every clicker is different, so this replaces any device list.
 
-<p align="center"><img src="docs/images/step-5-learn.png" width="480" alt="Press your button"></p>
+<p align="center"><img src="docs/images/step-5-learn.png" width="480" alt="Press your button: EucLink heard Volume Up"></p>
 
 
 ### 6. Choose what it does
@@ -224,7 +231,7 @@ Press the button. For push-to-talk, hold it, speak, then let go. The step turns 
 **It works**, and shows what the press did. If nothing happens, wake the button with a press, and
 check that the recorded shortcut matches the target app's global shortcut.
 
-<p align="center"><img src="docs/images/step-8-test.png" width="480" alt="Try it: waiting for a press"></p>
+<p align="center"><img src="docs/images/step-8-test.png" width="480" alt="Try it: it works"></p>
 
 ### 9. Done
 
@@ -392,7 +399,9 @@ attaches it to each release with the install steps from `.github/release-install
 ### Rendering the guide images
 
 `./build.sh docs` renders every guide step from the app's own views with sample data into
-`docs/images/guide-*.png`.
+`docs/images/guide-*.png`. The Build workflow renders the same pictures on every push and
+uploads them as the `guide-pictures` artifact. The step pictures in this README are those
+renders with a window frame added.
 
 ### How it works
 
