@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-22
+
 ### Fixed
 
 - After a permission reset, System Settings kept showing EucLink switched on, because it
