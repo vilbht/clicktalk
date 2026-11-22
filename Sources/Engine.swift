@@ -264,6 +264,9 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     private var heldKeys: [Trigger: Action] = [:]
 
     private var connectNote: IOBluetoothUserNotification?
+    /// Set before registering, because registering calls btConnected at once for every
+    /// device that is already connected, before it returns the notification object.
+    private var connectRegistered = false
     private var disconnectNote: IOBluetoothUserNotification?
     private var timer: Timer?
     private var lastReconnectAttempt = Date.distantPast
@@ -400,11 +403,13 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             disconnectNote = device.register(forDisconnectNotification: self,
                                              selector: #selector(btDisconnected(_:device:)))
         }
-        refresh()
+        // Never refresh from inside the notification: IOBluetooth delivers these while
+        // registration is still running, and refresh() is what registers.
+        DispatchQueue.main.async { [weak self] in self?.refresh() }
     }
 
     @objc func btDisconnected(_ note: IOBluetoothUserNotification, device: IOBluetoothDevice) {
-        refresh()
+        DispatchQueue.main.async { [weak self] in self?.refresh() }
     }
 
     // MARK: Bluetooth permission
@@ -937,7 +942,8 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         s.bluetoothAllowed = auth != .denied && auth != .restricted
         s.bluetoothAsked = auth != .notDetermined
         if bluetoothReady {
-            if connectNote == nil {
+            if !connectRegistered {
+                connectRegistered = true
                 connectNote = IOBluetoothDevice.register(forConnectNotifications: self,
                                                          selector: #selector(btConnected(_:device:)))
             }

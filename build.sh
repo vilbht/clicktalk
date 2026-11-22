@@ -57,6 +57,22 @@ if [ "$MODE" = "ci" ]; then
     Sources/Keys.swift Sources/Leftovers.swift Tests/main.swift -o "$TESTS/tests"
   "$TESTS/tests"
   rm -rf "$TESTS"
+
+  # Start the app once and check it is still running after five seconds. This catches a
+  # crash at launch that compiling and the unit tests cannot see.
+  echo "Launching once to check it starts…"
+  "$APP/Contents/MacOS/EucLink" &
+  PID=$!
+  sleep 5
+  if kill -0 "$PID" 2>/dev/null; then
+    kill "$PID"
+    echo "EucLink starts and stays up."
+  else
+    STATUS=0
+    wait "$PID" || STATUS=$?
+    echo "EucLink exited at launch with status ${STATUS}."
+    exit 1
+  fi
   exit 0
 fi
 

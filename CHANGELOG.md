@@ -6,6 +6,13 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- EucLink 0.4.8 and 0.4.9 crashed at launch when Bluetooth was allowed and a Bluetooth device
+  was connected. Signing up for connection notices made macOS report each connected device at
+  once, and each report signed up again, without end. EucLink now signs up exactly once and
+  handles the reports afterwards.
+
 ## [0.4.9] - 2026-11-22
 
 ### Fixed
