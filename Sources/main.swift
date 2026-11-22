@@ -310,7 +310,7 @@ final class Monitor: NSObject {
         var s = Snapshot()
         s.deviceName = deviceName
         if let hc = IOBluetoothHostController.default() {
-            s.btPowerOn = hc.powerState == BluetoothHCIPowerState(kBluetoothHCIPowerStateON)
+            s.btPowerOn = hc.powerState == kBluetoothHCIPowerStateON
         }
         let device = selectedDevice()
         s.paired = device != nil
