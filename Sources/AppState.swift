@@ -166,11 +166,11 @@ final class AppState: ObservableObject {
 
     init(monitor: Monitor) {
         self.monitor = monitor
-        updates.objectWillChange
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
         step = GuideStep(rawValue: UserDefaults.standard.integer(forKey: "guideStep")) ?? .welcome
         monitor.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        updates.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
     }
