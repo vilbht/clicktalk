@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-11-22
+
 ### Fixed
 
 - EucLink 0.4.8 and 0.4.9 crashed at launch when Bluetooth was allowed and a Bluetooth device
