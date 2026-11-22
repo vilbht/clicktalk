@@ -433,24 +433,35 @@ final class Monitor: NSObject {
         return false
     }
 
+    private var procRefreshing = false
+
+    /// Returns the cached process list and refreshes it in the background when stale,
+    /// so a button press never waits on a `ps` spawn on the main thread.
     private func processNames() -> [String] {
-        if Date().timeIntervalSince(procCache.at) < 5 { return procCache.names }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/ps")
-        p.arguments = ["-axo", "comm="]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        var names: [String] = []
-        if (try? p.run()) != nil {
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            p.waitUntilExit()
-            names = String(decoding: data, as: UTF8.self)
-                .split(separator: "\n")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
+        if Date().timeIntervalSince(procCache.at) > 5 && !procRefreshing {
+            procRefreshing = true
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/bin/ps")
+                p.arguments = ["-axo", "comm="]
+                let pipe = Pipe()
+                p.standardOutput = pipe
+                p.standardError = FileHandle.nullDevice
+                var names: [String] = []
+                if (try? p.run()) != nil {
+                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                    p.waitUntilExit()
+                    names = String(decoding: data, as: UTF8.self)
+                        .split(separator: "\n")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                }
+                DispatchQueue.main.async {
+                    self?.procCache = (Date(), names)
+                    self?.procRefreshing = false
+                }
+            }
         }
-        procCache = (Date(), names)
-        return names
+        return procCache.names
     }
 
     /// Does Karabiner's config claim this device (Modify events on)? Used only to
