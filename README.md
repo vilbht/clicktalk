@@ -88,12 +88,30 @@ EucLink can take hold of it.
 
 1. Download the zip from the latest [release](../../releases/latest) and unzip it.
 2. Move **EucLink.app** to Applications.
-3. The app is not notarized, so macOS blocks the first launch. Open Terminal (press
-   **Cmd+Space**, type `Terminal`, press **Return**), paste this line, and press **Return**:
+3. Allow the first launch, with either option below. You only do this once.
+
+**Why macOS blocks it.** Apple only lets an app open without a warning if a paid Apple developer
+account has signed and notarized it. EucLink is a free project without one, so macOS stops the
+first launch. The app is the same one built from this code by GitHub Actions. If you would
+rather not trust a download, [build it yourself](#build-it-yourself-any-mac).
+
+**Option A: Open Anyway (no Terminal)**
+
+1. Double-click **EucLink** in Applications. macOS says it cannot verify the app. Click **Done**.
+2. Open **System Settings > Privacy & Security**.
+3. Scroll down to the message about EucLink and click **Open Anyway**.
+4. Enter your password, then click **Open Anyway** again.
+
+**Option B: Terminal**
+
+Open Terminal (press **Cmd+Space**, type `Terminal`, press **Return**), paste this line, and press
+**Return**. It removes the "downloaded from the internet" label from EucLink only:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/EucLink.app
 ```
+
+Then open EucLink from Applications.
 
 ### Build it yourself (any Mac)
 

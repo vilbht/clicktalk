@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The download steps explain why macOS blocks the first launch, and add the Open Anyway
+  route for people who do not use Terminal.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added
