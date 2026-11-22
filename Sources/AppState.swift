@@ -39,10 +39,10 @@ enum GuideStep: Int, CaseIterable {
         case .welcome: return "Welcome"
         case .bluetooth: return "Bluetooth"
         case .pair: return "Button"
-        case .inputMonitoring: return "Input"
+        case .inputMonitoring: return "Input Monitoring"
         case .learn: return "Learn"
         case .action: return "Action"
-        case .accessibility: return "Keys"
+        case .accessibility: return "Accessibility"
         case .test: return "Test"
         case .done: return "Done"
         }
@@ -53,6 +53,28 @@ struct GuideDevice: Identifiable, Equatable {
     var id: String { name }
     let name: String
     let connected: Bool
+    var symbol = "dot.radiowaves.left.and.right"
+}
+
+/// An SF Symbol for a paired device, from its Bluetooth class or, for Bluetooth LE
+/// devices that report no class, from its name.
+func deviceSymbol(name: String, major: Int, minor: Int) -> String {
+    let n = name.lowercased()
+    if n.contains("airpods") || n.contains("buds") || n.contains("headphone") || n.contains("beats") { return "headphones" }
+    if n.contains("keys") || n.contains("keyboard") { return "keyboard" }
+    if n.contains("mouse") || n.contains("mx master") || n.contains("trackpad") { return "computermouse" }
+    if n.contains("gamepad") || n.contains("controller") { return "gamecontroller" }
+    switch major {
+    case 0x01: return "laptopcomputer"
+    case 0x02: return "iphone"
+    case 0x04: return n.contains("bar") || n.contains("speaker") ? "hifispeaker" : "headphones"
+    case 0x05:
+        if minor & 0x10 != 0 { return "keyboard" }
+        if minor & 0x20 != 0 { return "computermouse" }
+        if minor & 0x0F == 0x02 { return "gamecontroller" }
+        return "dot.radiowaves.left.and.right"
+    default: return "dot.radiowaves.left.and.right"
+    }
 }
 
 /// Plain values the setup guide shows. Built live from the engine, or filled with
@@ -71,6 +93,7 @@ struct GuideContext {
     var karabinerHolds = false
     var isLearning = false
     var trigger: Trigger?
+    var needsAccessibility = true
     var accessibility: PermState = .notDetermined
     var testPassed = false
     var lastOutcome: String?
@@ -336,6 +359,21 @@ final class AppState: ObservableObject {
         monitor.learning = true
     }
 
+    /// Paired devices, connected ones first, each with an icon.
+    func pairedDeviceList() -> [GuideDevice] {
+        monitor.pairedDevices()
+            .map { d -> GuideDevice in
+                let name = d.name ?? d.addressString ?? "Unknown device"
+                return GuideDevice(name: name, connected: d.isConnected(),
+                                   symbol: deviceSymbol(name: name, major: Int(d.deviceClassMajor),
+                                                        minor: Int(d.deviceClassMinor)))
+            }
+            .sorted { a, b in
+                if a.connected != b.connected { return a.connected }
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }
+    }
+
     func guideContext() -> GuideContext {
         let s = monitor.snapshot
         var c = GuideContext()
@@ -343,9 +381,8 @@ final class AppState: ObservableObject {
         c.appFolder = (Bundle.main.bundlePath as NSString).deletingLastPathComponent
         c.moveError = moveError
         c.bluetooth = bluetoothState
-        c.devices = monitor.pairedDevices().map {
-            GuideDevice(name: $0.name ?? $0.addressString ?? "Unknown device", connected: $0.isConnected())
-        }
+        c.devices = pairedDeviceList()
+        c.needsAccessibility = guideNeedsAccessibility
         c.selectedDevice = s.deviceName
         c.connected = s.connected
         c.registered = !s.hid.isEmpty
@@ -395,15 +432,14 @@ final class AppState: ObservableObject {
             case .none: return false
             case .keystroke, .toggleApp, .openApp, .shortcut, .url, .shell: return !a.value.isEmpty
             }
-        case .accessibility: return c.accessibility == .granted
+        case .accessibility: return !c.needsAccessibility || c.accessibility == .granted
         case .test, .done: return true
         }
     }
 
-    /// The steps this setup will show. Accessibility only matters for keystrokes.
-    var guideSteps: [GuideStep] {
-        GuideStep.allCases.filter { $0 != .accessibility || guideNeedsAccessibility }
-    }
+    /// Always all nine, so the count never jumps. The Accessibility step says it is not
+    /// needed when the action presses no keys.
+    var guideSteps: [GuideStep] { GuideStep.allCases }
 
     func nextStep() {
         let steps = guideSteps

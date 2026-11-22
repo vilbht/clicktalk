@@ -271,12 +271,17 @@ struct DeviceRow: View {
     let name: String
     let connected: Bool
     let selected: Bool
+    var symbol = "dot.radiowaves.left.and.right"
     let onTap: () -> Void
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: selected ? "largecircle.fill.circle" : "circle")
                 .font(.system(size: 16))
                 .foregroundStyle(selected ? Brand.accent : Color.secondary)
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
             Text(name).font(.system(size: 13, weight: selected ? .semibold : .regular))
             Spacer()
             if connected { Badge(text: "Connected", color: Brand.good) }
@@ -294,7 +299,7 @@ struct ButtonPage: View {
 
     var body: some View {
         let s = state.monitor.snapshot
-        let devices = state.monitor.pairedDevices()
+        let devices = state.pairedDeviceList()
         VStack(alignment: .leading, spacing: 18) {
             PageHeader(title: "Button", subtitle: "Choose the Bluetooth button Clicktalk listens to.")
             Card {
@@ -307,10 +312,9 @@ struct ButtonPage: View {
                     Text("No paired devices. Pair your button in Bluetooth settings, then it appears here.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
-                ForEach(devices, id: \.self) { d in
-                    let name = d.name ?? d.addressString ?? "Unknown device"
-                    DeviceRow(name: name, connected: d.isConnected(), selected: s.deviceName == name) {
-                        state.monitor.deviceName = name
+                ForEach(devices) { d in
+                    DeviceRow(name: d.name, connected: d.connected, selected: s.deviceName == d.name, symbol: d.symbol) {
+                        state.monitor.deviceName = d.name
                     }
                 }
             }

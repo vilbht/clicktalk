@@ -69,7 +69,7 @@ struct GuideFrame: View {
             }
             .padding(.horizontal, 24).padding(.vertical, 14)
         }
-        .frame(width: 660, height: 640)
+        .frame(width: 660, height: 700)
         .background(Brand.window)
     }
 
@@ -201,6 +201,7 @@ struct GuideStepView: View {
     let ctx: GuideContext
     let actions: GuideActions
     @Binding var action: Action
+    @State private var showAllDevices = false
 
     var body: some View {
         switch step {
@@ -230,14 +231,24 @@ struct GuideStepView: View {
         case .learn: learn
         case .action: chooseAction
         case .accessibility:
+            if !ctx.needsAccessibility {
+                VStack(alignment: .leading, spacing: 18) {
+                    StepHeader(symbol: "accessibility", title: "Accessibility",
+                               subtitle: "Only needed when the button presses keys for you.")
+                    Callout(symbol: "checkmark.circle.fill",
+                            text: "Your action does not press keys, so Clicktalk does not need this permission. Continue.",
+                            color: Brand.good)
+                }
+            } else {
             PermissionStep(
                 symbol: "accessibility", title: "Allow Accessibility",
-                why: "macOS requires this for any app that presses keys for you. Clicktalk only presses \(action.value.isEmpty ? "your shortcut" : action.value), and only when you press the button.",
+                why: "macOS requires this for any app that presses keys for you. Clicktalk only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
                 pane: "Accessibility", anchor: "Privacy_Accessibility",
                 instructions: ["Click Allow Accessibility below.",
                                "In the prompt, choose Open System Settings.",
                                "Turn Clicktalk on. This one works without a relaunch."],
                 state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility)
+            }
         case .test: test
         case .done: done
         }
@@ -290,6 +301,12 @@ struct GuideStepView: View {
         }
     }
 
+    private func deviceRow(_ d: GuideDevice) -> some View {
+        DeviceRow(name: d.name, connected: d.connected, selected: ctx.selectedDevice == d.name, symbol: d.symbol) {
+            actions.selectDevice(d.name)
+        }
+    }
+
     private var pair: some View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(symbol: "dot.radiowaves.left.and.right", title: "Choose your button",
@@ -306,10 +323,26 @@ struct GuideStepView: View {
                         .buttonStyle(PrimaryButtonStyle())
                 }
             } else {
-                Card(padding: 8) {
-                    ForEach(ctx.devices) { d in
-                        DeviceRow(name: d.name, connected: d.connected, selected: ctx.selectedDevice == d.name) {
-                            actions.selectDevice(d.name)
+                Callout(symbol: "hand.point.up.left.fill",
+                        text: "Press your button once. Most clickers connect only when pressed, so yours moves to Connected now.",
+                        color: Brand.accent)
+                let connected = ctx.devices.filter { $0.connected }
+                let others = ctx.devices.filter { !$0.connected }
+                if !connected.isEmpty {
+                    SectionTitle(text: "Connected now")
+                    Card(padding: 8) {
+                        ForEach(connected) { d in deviceRow(d) }
+                    }
+                }
+                if !others.isEmpty {
+                    SectionTitle(text: "Other paired devices")
+                    Card(padding: 8) {
+                        let shown = showAllDevices ? others : Array(others.prefix(4))
+                        ForEach(shown) { d in deviceRow(d) }
+                        if others.count > shown.count {
+                            Button("Show all \(others.count)") { showAllDevices = true }
+                                .buttonStyle(TextLinkStyle())
+                                .padding(.horizontal, 12).padding(.vertical, 6)
                         }
                     }
                 }
@@ -388,7 +421,7 @@ struct GuideStepView: View {
             }
             if action.kind != .none {
                 Card {
-                    ActionEditor(action: $action, showKinds: action.kind == .url || action.kind == .shell)
+                    ActionEditor(action: $action, showKinds: action.kind == .url || action.kind == .shell, showHold: false)
                 }
             }
         }
@@ -449,7 +482,7 @@ struct GuideStepView: View {
                 Circle().fill(color).frame(width: 10, height: 10)
                 if !label.isEmpty { Text(label).font(.system(size: 10, weight: .bold, design: .monospaced)) }
             }
-            .frame(width: 40, alignment: .leading)
+            .frame(width: 32, alignment: .leading)
             Text(text).font(.system(size: 12))
         }
     }

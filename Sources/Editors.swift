@@ -104,8 +104,8 @@ struct PresetCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Brand.card))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .stroke(selected ? Brand.accent : Brand.stroke, lineWidth: selected ? 2 : 1))
@@ -118,6 +118,8 @@ struct PresetCard: View {
 struct ActionEditor: View {
     @Binding var action: Action
     var showKinds = true
+    /// The guide sets hold through its presets, so it hides the switch.
+    var showHold = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -131,7 +133,7 @@ struct ActionEditor: View {
                 }
             }
             switch action.kind {
-            case .keystroke: KeystrokeEditor(action: $action)
+            case .keystroke: KeystrokeEditor(action: $action, showHold: showHold)
             case .toggleApp, .openApp: AppEditor(action: $action)
             case .shortcut: ShortcutEditor(action: $action)
             case .url:
@@ -186,6 +188,7 @@ final class RecorderBox: ObservableObject {
 
 struct KeystrokeEditor: View {
     @Binding var action: Action
+    var showHold = true
     @StateObject private var box = RecorderBox()
     @State private var showTyped = false
     @State private var typed = ""
@@ -215,6 +218,7 @@ struct KeystrokeEditor: View {
                 Label("Recording needs Input Monitoring. Type the shortcut instead.", systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 12)).foregroundStyle(Brand.warn)
             }
+            if showHold {
             Toggle(isOn: $action.hold) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Hold while the button is held").font(.system(size: 13, weight: .medium))
@@ -223,6 +227,7 @@ struct KeystrokeEditor: View {
                 }
             }
             .toggleStyle(SwitchStyle())
+            }
             Button(showTyped ? "Hide typing" : "Type it instead") { showTyped.toggle() }
                 .buttonStyle(TextLinkStyle())
             if showTyped {

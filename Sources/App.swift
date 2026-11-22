@@ -103,12 +103,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     func showGuide() {
         if guideWindow == nil {
-            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 640),
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 700),
                              styleMask: [.titled, .closable],
                              backing: .buffered, defer: false)
             w.title = "Set Up Clicktalk"
             w.contentViewController = NSHostingController(rootView: GuideWindowView(state: state))
-            w.setContentSize(NSSize(width: 660, height: 640))
+            w.setContentSize(NSSize(width: 660, height: 700))
             w.isReleasedWhenClosed = false
             w.delegate = self
             w.center()

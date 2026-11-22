@@ -16,7 +16,8 @@ enum DocsRenderer {
                                flags: CGEventFlags.maskSecondaryFn.rawValue, hold: true)
         var base = GuideContext()
         base.devices = [GuideDevice(name: "AB Shutter3", connected: true),
-                        GuideDevice(name: "AirPods Pro", connected: false)]
+                        GuideDevice(name: "AirPods Pro", connected: false, symbol: "headphones"),
+                        GuideDevice(name: "MX Keys Mini", connected: false, symbol: "keyboard")]
         let steps = GuideStep.allCases
 
         func ctx(_ change: (inout GuideContext) -> Void) -> GuideContext {
@@ -43,7 +44,7 @@ enum DocsRenderer {
         for (name, step, c, action) in pages {
             let view = GuideFrame(step: step, steps: steps, ctx: c, actions: GuideActions(),
                                   action: .constant(action), canContinue: true, scrolls: false)
-            write(view, size: CGSize(width: 660, height: 640), to: dir.appendingPathComponent(name + ".png"))
+            write(view, size: CGSize(width: 660, height: 700), to: dir.appendingPathComponent(name + ".png"))
         }
 
         write(OverviewSample(), size: CGSize(width: 760, height: 470), to: dir.appendingPathComponent("overview.png"))
