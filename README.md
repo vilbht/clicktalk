@@ -103,23 +103,6 @@ Clone or download this repository, then run this in its folder:
 `build.sh` compiles the app, installs it in `/Applications` and opens it. The setup guide opens on
 first launch. Building it yourself avoids the Gatekeeper warning and works on Intel Macs too.
 
-### Coming from Clicktalk
-
-EucLink was called Clicktalk until version 0.3.0. macOS treats the renamed app as a new app, so
-remove the old one first, then run the setup guide again:
-
-```bash
-./uninstall.sh --all
-```
-
-```bash
-./make-cert.sh
-```
-
-```bash
-./build.sh
-```
-
 ## Set up, step by step
 
 The guide has nine steps. Each one checks itself, and **Continue** lights up as soon as macOS
@@ -263,7 +246,7 @@ Open it from the menu bar dot with **Open EucLink**.
 ## Uninstall, and a clean reinstall
 
 `uninstall.sh` removes the app, its settings, its permission entries and its login item. Your
-Bluetooth pairing and this source folder stay. It also removes Clicktalk, this app's earlier name.
+Bluetooth pairing and this source folder stay.
 
 ```bash
 ./uninstall.sh
