@@ -305,7 +305,9 @@ struct GuideStepView: View {
                 Card {
                     Label("Copy EucLink to Applications first", systemImage: "exclamationmark.triangle.fill")
                         .font(.system(size: 13, weight: .semibold)).foregroundStyle(Brand.warn)
-                    Text("It is running from \(ctx.appFolder). macOS ties permissions to the app's location, so granting them here and moving it later means granting them again.")
+                    Text(ctx.translocated
+                         ? "You opened EucLink before moving it, so macOS is running a temporary copy. Permissions granted now would be lost. Copy it to Applications first."
+                         : "It is running from \(ctx.appFolder). macOS ties permissions to the app's location, so granting them here and moving it later means granting them again.")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     Button("Copy to Applications and Relaunch", action: actions.moveToApplications)

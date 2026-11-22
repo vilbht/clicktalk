@@ -6,6 +6,18 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Copy to Applications failed with "no such file" when EucLink was opened straight from the
+  disk image. macOS runs such an app from a hidden temporary copy; EucLink now finds the
+  original, copies that, and opens the copy without a second warning. If the disk image is
+  already closed, it says how to drag EucLink into Applications instead.
+- The welcome step explains this case in plain words instead of showing the temporary path.
+
+### Changed
+
+- The disk image window says to open EucLink from Applications, not from the window.
+
 ## [0.4.3] - 2026-11-22
 
 ### Fixed

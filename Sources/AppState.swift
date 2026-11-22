@@ -83,6 +83,8 @@ struct GuideContext {
     var inApplications = true
     var appFolder = "/Applications"
     var moveError: String?
+    /// True when macOS runs a hidden temporary copy (App Translocation).
+    var translocated = false
     var bluetooth: PermState = .notDetermined
     var devices: [GuideDevice] = []
     var selectedDevice: String?
@@ -263,19 +265,50 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// True when macOS runs a hidden, read-only temporary copy of the app. That is App
+    /// Translocation: it happens when a downloaded app is opened before it was moved,
+    /// for example straight from the disk image.
+    var isTranslocated: Bool { Bundle.main.bundlePath.contains("/AppTranslocation/") }
+
+    /// Where the app really is. For a translocated app, asks macOS for the original
+    /// location; the temporary copy itself cannot be copied.
+    private func originalBundlePath() -> String {
+        let here = Bundle.main.bundlePath
+        guard isTranslocated,
+              let lib = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY),
+              let sym = dlsym(lib, "SecTranslocateCreateOriginalPathForURL") else { return here }
+        typealias Original = @convention(c) (CFURL, UnsafeMutablePointer<Unmanaged<CFError>?>?) -> Unmanaged<CFURL>?
+        let original = unsafeBitCast(sym, to: Original.self)
+        guard let url = original(Bundle.main.bundleURL as CFURL, nil)?.takeRetainedValue() as URL? else { return here }
+        return url.path
+    }
+
     /// Copies the app to /Applications and relaunches from there. macOS ties the
     /// permissions to the app, so it is best done before granting any.
     func moveToApplications() {
-        let src = Bundle.main.bundlePath
+        let src = originalBundlePath()
         let dst = "/Applications/EucLink.app"
         let fm = FileManager.default
+        guard fm.fileExists(atPath: src), !src.contains("/AppTranslocation/") else {
+            moveError = "EucLink can't copy itself from here. Quit EucLink, open the disk image again, "
+                + "drag EucLink into Applications, and open it from Applications."
+            return
+        }
         do {
             if fm.fileExists(atPath: dst) { try fm.removeItem(atPath: dst) }
             try fm.copyItem(atPath: src, toPath: dst)
         } catch {
-            moveError = "Could not copy to Applications: \(error.localizedDescription)"
+            moveError = "Could not copy to Applications: \(error.localizedDescription). "
+                + "Drag EucLink into Applications in Finder instead."
             return
         }
+        // You already allowed this download once. Without its "downloaded" label the copy
+        // opens without a second Gatekeeper warning.
+        let x = Process()
+        x.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        x.arguments = ["-dr", "com.apple.quarantine", dst]
+        try? x.run()
+        x.waitUntilExit()
         launchAndQuit(dst)
     }
 
@@ -419,6 +452,7 @@ final class AppState: ObservableObject {
         c.inApplications = isInApplications
         c.appFolder = (Bundle.main.bundlePath as NSString).deletingLastPathComponent
         c.moveError = moveError
+        c.translocated = isTranslocated
         c.bluetooth = bluetoothState
         c.devices = pairedDeviceList()
         c.needsAccessibility = guideNeedsAccessibility
