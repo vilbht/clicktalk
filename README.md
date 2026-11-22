@@ -247,6 +247,11 @@ only when you click its **Allow** button.
 EucLink never asks for screen recording, the microphone, the camera or full disk access, and
 it makes no network connections.
 
+**Passwords.** EucLink never asks for a password. macOS itself asks for your Mac password or
+Touch ID in two places: when you click **Open Anyway** for the first launch, and when you change
+a switch or click **+** in Privacy & Security. If any other password prompt names EucLink, click
+**Deny** and [report it](../../issues/new?template=bug_report.yml).
+
 ### If EucLink is not in the list
 
 macOS does not always add EucLink to the Input Monitoring or Accessibility list by itself.

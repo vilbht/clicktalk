@@ -494,7 +494,7 @@ struct PermissionRow: View {
                     } else if state != .granted {
                         Button("Allow", action: onAllow).buttonStyle(PrimaryButtonStyle())
                     }
-                    Button("Open System Settings", action: onOpen).buttonStyle(TextLinkStyle())
+                    Button("Open \(title) Settings", action: onOpen).buttonStyle(TextLinkStyle())
                 }
                 .padding(.top, 2)
             }

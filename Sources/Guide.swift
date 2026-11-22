@@ -231,9 +231,16 @@ struct PermissionStep: View {
             } else {
             NumberedSteps(items: instructions)
             HStack(spacing: 14) {
-                Button("Open System Settings") { actions.openPrivacyPane(anchor) }.buttonStyle(TextLinkStyle())
+                Button("Open \(pane) Settings") { actions.openPrivacyPane(anchor) }.buttonStyle(TextLinkStyle())
                 Spacer()
                 PermStatus(state: state)
+            }
+            if dragToAdd {
+                // macOS, not EucLink, asks for this, and only inside System Settings.
+                Label("macOS may ask for your Mac password or Touch ID to change this setting. EucLink never asks for a password.",
+                      systemImage: "lock.shield")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if let onReset {
                 HStack(alignment: .center, spacing: 12) {
@@ -296,7 +303,7 @@ struct GuideStepView: View {
                 pane: "Bluetooth", anchor: "Privacy_Bluetooth",
                 instructions: ["Click Allow Bluetooth at the bottom of this window.",
                                "Choose Allow in the prompt macOS shows.",
-                               "Chose Don't Allow before? Open System Settings and turn EucLink on."],
+                               "Chose Don't Allow before? Open Bluetooth Settings below and turn EucLink on."],
                 state: ctx.bluetooth, actions: actions, onAllow: actions.allowBluetooth,
                 onReset: ctx.bluetooth == .denied ? { actions.resetPermission("BluetoothAlways") } : nil,
                 done: ctx.permissionsDone, index: 0)
@@ -307,7 +314,7 @@ struct GuideStepView: View {
                     symbol: "keyboard", title: "Allow Input Monitoring",
                     why: "This lets EucLink read your button directly and keep its own key, such as Volume Up, from reaching other apps. EucLink only opens the button you chose.",
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
-                    instructions: ["Click Allow Input Monitoring at the bottom of this window. System Settings opens.",
+                    instructions: ["Click Allow Input Monitoring at the bottom of this window. Privacy & Security > Input Monitoring opens.",
                                    "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
                                    "Turn EucLink on, then click Restart EucLink at the bottom of this window."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
@@ -338,7 +345,7 @@ struct GuideStepView: View {
                 symbol: "accessibility", title: "Allow Accessibility",
                 why: "macOS requires this for any app that presses keys for you. EucLink only presses \(action.value.isEmpty ? "your shortcut" : KeyCaps.split(action.value).joined(separator: " + ")), and only when you press the button.",
                 pane: "Accessibility", anchor: "Privacy_Accessibility",
-                instructions: ["Click Allow Accessibility at the bottom of this window. System Settings opens.",
+                instructions: ["Click Allow Accessibility at the bottom of this window. Privacy & Security > Accessibility opens.",
                                "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
                                "Turn EucLink on. This one works without a relaunch."],
                 state: ctx.accessibility, actions: actions, onAllow: actions.allowAccessibility,
