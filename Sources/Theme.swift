@@ -38,7 +38,7 @@ enum PermState: Equatable {
         case .granted: return "Allowed"
         case .notDetermined: return "Not allowed yet"
         case .denied: return "Turned off in System Settings"
-        case .needsRelaunch: return "Allowed. Relaunch EucLink to use it"
+        case .needsRelaunch: return "Allowed. Restarting EucLink to use it"
         }
     }
     var color: Color {

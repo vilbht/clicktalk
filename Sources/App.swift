@@ -68,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         if !state.guideDone && monitor.bindings.isEmpty {
             showGuide()
         }
+        state.resumePermissionRequest()
     }
 
     /// Opening the app again from Finder or Spotlight shows the window.

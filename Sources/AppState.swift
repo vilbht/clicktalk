@@ -192,11 +192,15 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Always asks, because asking is what puts EucLink in the list in System Settings.
+    /// Then opens that list, unless macOS granted it straight away.
     func allowInputMonitoring() {
-        if inputMonitoringState == .notDetermined {
-            monitor.requestInputMonitoring()
-        } else {
-            openPrivacyPane("Privacy_ListenEvent")
+        monitor.requestInputMonitoring()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if self.inputMonitoringState == .denied || self.inputMonitoringState == .notDetermined {
+                self.openPrivacyPane("Privacy_ListenEvent")
+            }
         }
     }
 
@@ -239,7 +243,24 @@ final class AppState: ObservableObject {
         let id = Bundle.main.bundleIdentifier ?? "local.euclink"
         for s in services { PermissionReset.run(s, bundleID: id) }
         monitor.log("Reset \(services.joined(separator: ", ")) and relaunched")
+        // After the restart, ask again without another click (see resumePermissionRequest).
+        if services.count == 1 { UserDefaults.standard.set(services[0], forKey: "pendingPermissionRequest") }
         relaunch()
+    }
+
+    /// Called at launch: finishes a Reset and Try Again by asking for the permission.
+    func resumePermissionRequest() {
+        guard let service = UserDefaults.standard.string(forKey: "pendingPermissionRequest") else { return }
+        UserDefaults.standard.removeObject(forKey: "pendingPermissionRequest")
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            switch service {
+            case "ListenEvent": self.allowInputMonitoring()
+            case "Accessibility": self.allowAccessibility()
+            case "BluetoothAlways": self.allowBluetooth()
+            default: break
+            }
+        }
     }
 
     /// Copies the app to /Applications and relaunches from there. macOS ties the

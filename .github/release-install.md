@@ -5,7 +5,7 @@ Apple silicon Macs, macOS 13 or later. On an Intel Mac, build EucLink from sourc
 1. Download **EucLink-VERSION-apple-silicon.dmg** below, open it, and drag EucLink into Applications.
    The .zip holds the same app if you prefer it.
 2. Open EucLink from Applications. macOS blocks the first launch, because EucLink is not signed
-   with a paid Apple developer account. Click **Done**.
+   with a paid Apple developer account. In the "Not Opened" warning, click **Done**, not Move to Trash.
 3. Open **System Settings > Privacy & Security**, scroll down, and click **Open Anyway**. Enter
    your password and click **Open Anyway** again. You only do this once.
 

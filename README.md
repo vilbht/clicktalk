@@ -97,7 +97,10 @@ rather not trust a download, [build it yourself](#build-it-yourself-any-mac).
 
 **Option A: Open Anyway (no Terminal)**
 
-1. Double-click **EucLink** in Applications. macOS says it cannot verify the app. Click **Done**.
+<p align="center"><img src="docs/images/first-launch.png" width="620" alt="First launch: click Done in the Not Opened warning, open System Settings > Privacy & Security, scroll down and click Open Anyway"></p>
+
+1. Double-click **EucLink** in Applications. macOS says "EucLink.app" Not Opened. Click **Done**,
+   not Move to Trash.
 2. Open **System Settings > Privacy & Security**.
 3. Scroll down to the message about EucLink and click **Open Anyway**.
 4. Enter your password, then click **Open Anyway** again.

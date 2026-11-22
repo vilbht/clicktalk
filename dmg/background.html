@@ -1,32 +1,54 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}html,body{margin:0}
-body{width:660px;height:400px;font-family:Inter,-apple-system,sans-serif;color:#2b2540;overflow:hidden;
+body{width:660px;height:500px;font-family:Inter,-apple-system,sans-serif;color:#2b2540;overflow:hidden;position:relative;
   background:radial-gradient(420px 300px at 0% 100%,#f1ecff 0,rgba(241,236,255,0) 70%),radial-gradient(380px 260px at 100% 0%,#ffeef6 0,rgba(255,238,246,0) 70%),#fdfcff}
-.logo{position:absolute;left:50%;top:30px;transform:translateX(-50%);width:132px}
-.sub{position:absolute;top:62px;width:100%;text-align:center;font-size:13px;color:#7a7390;font-weight:500;letter-spacing:.2px}
-.rings{position:absolute;left:165px;top:190px}
+.logo{position:absolute;left:50%;top:24px;transform:translateX(-50%);width:124px}
+.sub{position:absolute;top:54px;width:100%;text-align:center;font-size:13px;color:#7a7390;font-weight:500}
+.rings{position:absolute;left:165px;top:165px}
 .rings i{position:absolute;border-radius:50%;border:1.5px solid;transform:translate(-50%,-50%)}
-.hint{position:absolute;left:50%;top:326px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
-  padding:9px 16px 9px 10px;border-radius:999px;background:#fff;box-shadow:0 4px 14px rgba(60,30,120,.08),0 0 0 1px rgba(60,30,120,.06);
-  font-size:12px;white-space:nowrap;color:#4a4460}
-.hint b{font-weight:600;color:#2b2540}
-.hint .ic{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#6B5CF5,#E8549E);display:grid;place-items:center}
-.sep{color:#b3acc6;margin:0 1px}
+.sec{position:absolute;top:284px;width:100%;text-align:center;font-size:11px;font-weight:700;letter-spacing:1.4px;color:#9a93b0}
+#strip{position:absolute;left:24px;top:306px;width:612px;display:flex;gap:14px}
+.card{flex:1;height:170px;background:#fff;border-radius:16px;box-shadow:0 4px 14px rgba(60,30,120,.07),0 0 0 1px rgba(60,30,120,.06);
+  display:flex;flex-direction:column;align-items:center;padding:12px 10px 10px}
+.art{height:104px;width:100%;display:flex;align-items:center;justify-content:center}
+.cap{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;margin-top:auto;text-align:left;line-height:1.25}
+.n{flex:none;width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#6B5CF5,#E8549E);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+/* mini warning dialog */
+.dlg{width:128px;background:#fbfbfd;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.12),0 0 0 1px rgba(0,0,0,.06);padding:9px 9px 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.lock{width:22px;height:22px;border-radius:6px;background:linear-gradient(#e9e9ee,#c9c9d1);position:relative}
+.lock:after{content:"";position:absolute;right:-5px;bottom:-4px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid #f5b915}
+.dt{font-size:8.5px;font-weight:700;color:#1d1d1f;text-align:center;line-height:1.25}
+.db{width:100%;border-radius:999px;font-size:8px;font-weight:600;text-align:center;padding:4px 0}
+.trash{background:#3478f6;color:#fff;opacity:.45}
+.done{background:#e9e9ee;color:#1d1d1f;box-shadow:0 0 0 2px #fff,0 0 0 4px #8E6CF0}
+/* privacy icon */
+.pv{display:flex;flex-direction:column;align-items:center;gap:8px}
+.pvi{width:54px;height:54px;border-radius:13px;background:linear-gradient(#5aa2ff,#2f6ff0);display:grid;place-items:center;box-shadow:0 6px 14px rgba(47,111,240,.3)}
+.path{font-size:10px;color:#6b6580;font-weight:500}
+/* open anyway */
+.oa{display:flex;flex-direction:column;align-items:center;gap:9px}
+.msg{font-size:9px;color:#6b6580;max-width:150px;text-align:center;line-height:1.35}
+.btn{font-size:11px;font-weight:600;background:#fff;border-radius:7px;padding:5px 12px;box-shadow:0 0 0 1px rgba(0,0,0,.14),0 1px 2px rgba(0,0,0,.08),0 0 0 4px rgba(142,108,240,.35)}
 </style></head><body>
 <img class="logo" src="../docs/images/logo.png">
 <div class="sub">Drag EucLink into Applications to install</div>
-<div class="rings">
-  <i style="width:170px;height:170px;border-color:rgba(142,108,240,.16)"></i>
-  <i style="width:218px;height:218px;border-color:rgba(232,84,158,.10)"></i>
-</div>
-<svg style="position:absolute;left:0;top:0" width="660" height="400">
+<div class="rings"><i style="width:160px;height:160px;border-color:rgba(142,108,240,.16)"></i><i style="width:206px;height:206px;border-color:rgba(232,84,158,.10)"></i></div>
+<svg style="position:absolute;left:0;top:0" width="660" height="300">
   <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#6B5CF5"/><stop offset="1" stop-color="#E8549E"/></linearGradient>
   <filter id="s" x="-20%" y="-50%" width="140%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#6B5CF5" flood-opacity=".25"/></filter></defs>
   <g filter="url(#s)" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M256 184 C 300 164, 360 164, 404 184"/>
-    <path d="M396 169 L406 185 L388 189"/>
+    <path d="M256 159 C 300 139, 360 139, 404 159"/><path d="M396 144 L406 160 L388 164"/>
   </g>
 </svg>
-<div class="hint"><div class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M12 2 4 5v6c0 5 3.4 9.6 8 11 4.6-1.4 8-6 8-11V5l-8-3z"/></svg></div>
-  First launch blocked?<b>System Settings</b><span class="sep">›</span><b>Privacy &amp; Security</b><span class="sep">›</span><b>Open Anyway</b></div>
+<div class="sec">FIRST LAUNCH, ONCE</div>
+<div id="strip">
+  <div class="card"><div class="art"><div class="dlg"><div class="lock"></div><div class="dt">“EucLink.app” Not Opened</div>
+      <div class="db trash">Move to Trash</div><div class="db done">Done</div></div></div>
+    <div class="cap"><span class="n">1</span><span>Open EucLink.<br>Click Done</span></div></div>
+  <div class="card"><div class="art"><div class="pv"><div class="pvi"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><path d="M9 3.5a1.3 1.3 0 0 1 2.6 0V11h.6V2.6a1.3 1.3 0 0 1 2.6 0V11h.6V4a1.3 1.3 0 0 1 2.6 0v9.5c0 4-2.7 7.5-6.6 7.5-2.4 0-4.2-1.2-5.5-3.2L3.3 14a1.3 1.3 0 0 1 2.1-1.5L7.4 15H8V6a1.3 1.3 0 0 1 1-2.5z"/></svg></div>
+      <div class="path">System Settings</div></div></div>
+    <div class="cap"><span class="n">2</span><span>Privacy &amp;<br>Security</span></div></div>
+  <div class="card"><div class="art"><div class="oa"><div class="msg">“EucLink” was blocked to protect your Mac.</div><div class="btn">Open Anyway</div></div></div>
+    <div class="cap"><span class="n">3</span><span>Scroll down. Click<br>Open Anyway</span></div></div>
+</div>
 </body></html>

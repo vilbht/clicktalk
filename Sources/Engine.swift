@@ -562,8 +562,20 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeDenied
     }
 
+    /// Asks for Input Monitoring in every way macOS listens to. IOHIDRequestAccess alone
+    /// sometimes neither prompts nor adds EucLink to the list in System Settings, for
+    /// example after a reset or an earlier Don't Allow. CGRequestListenEventAccess and an
+    /// attempt to create a listen-only event tap both make macOS record the request, so
+    /// EucLink appears in the list. The tap is closed at once and never reads an event.
     func requestInputMonitoring() {
         _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+        _ = CGRequestListenEventAccess()
+        if let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.flagsChanged.rawValue),
+            callback: { _, _, event, _ in Unmanaged.passUnretained(event) }, userInfo: nil) {
+            CFMachPortInvalidate(tap)
+        }
         log("Input Monitoring requested")
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.rebuildGrab()

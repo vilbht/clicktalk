@@ -7,9 +7,11 @@ background = defines.get("background", "dmg/background.png")  # noqa: F821
 format = "UDZO"
 files = [app]
 symlinks = {"Applications": "/Applications"}
-icon_locations = {"EucLink.app": (165, 190), "Applications": (495, 190)}
+icon_locations = {"EucLink.app": (165, 165), "Applications": (495, 165)}
 
-window_rect = ((200, 120), (660, 400))
+# The background is 500 points tall. The extra 40 leave room for the title bar, so the
+# first-launch row at the bottom is never cut off.
+window_rect = ((200, 100), (660, 540))
 default_view = "icon-view"
 icon_size = 100
 text_size = 13

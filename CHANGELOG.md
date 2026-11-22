@@ -6,6 +6,19 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- EucLink was sometimes missing from the Input Monitoring list, so people had to add it with +.
+  Allow Input Monitoring now always asks macOS, in every way macOS records, then opens the list.
+- The disk image window cut off its bottom row.
+
+### Changed
+
+- After Reset and Try Again, EucLink asks for the permission by itself after it restarts.
+- Once Input Monitoring is on, the guide restarts EucLink by itself.
+- The disk image window shows the three first-launch steps: Done, Privacy & Security,
+  Open Anyway. The README shows the same picture.
+
 ## [0.4.2] - 2026-11-22
 
 ### Added

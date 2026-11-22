@@ -237,12 +237,17 @@ struct GuideStepView: View {
                     symbol: "keyboard", title: "Allow Input Monitoring",
                     why: "This lets EucLink read your button directly and keep its own key, such as Volume Up, from reaching other apps. EucLink only opens the button you chose.",
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
-                    instructions: ["Click Allow Input Monitoring below.",
-                                   "In the prompt, choose Open System Settings.",
-                                   "Turn EucLink on. If macOS asks to quit and reopen, choose Later and use Relaunch here."],
+                    instructions: ["Click Allow Input Monitoring below. System Settings opens.",
+                                   "Turn EucLink on. EucLink restarts by itself to use it.",
+                                   "Not in the list? Click + below the list, open Applications and choose EucLink."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
                     onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil)
                 grabStatus
+            }
+            // Input Monitoring only takes effect at launch, so restart as soon as it is on.
+            .onAppear { if ctx.inputMonitoring == .needsRelaunch { relaunchSoon() } }
+            .onChange(of: ctx.inputMonitoring) { state in
+                if state == .needsRelaunch { relaunchSoon() }
             }
         case .learn: learn
         case .action: chooseAction
@@ -270,6 +275,10 @@ struct GuideStepView: View {
         case .test: test
         case .done: done
         }
+    }
+
+    private func relaunchSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { actions.relaunch() }
     }
 
     // MARK: steps
