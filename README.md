@@ -7,8 +7,9 @@ when Karabiner stops reacting to it. Single Swift file, no dependencies, no Xcod
 
 ```bash
 ./build.sh
-open Clicktalk.app
 ```
+
+The script compiles, signs ad hoc, quits any running copy and launches the new one.
 
 First launch: macOS asks for Bluetooth permission. Allow it. Then pick your button under
 **Device** in the menu. Clicktalk remembers the choice.

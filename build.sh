@@ -16,5 +16,11 @@ cp Info.plist "$APP/Contents/Info.plist"
 codesign --force --sign - "$APP"
 
 echo "Built $PWD/$APP"
-echo "Run:      open $APP"
-echo "Install:  mv $APP /Applications/"
+
+# Quit a running copy, otherwise `open` just brings the old binary forward.
+if pgrep -xq Clicktalk; then
+  pkill -x Clicktalk
+  sleep 1
+fi
+open "$APP"
+echo "Launched. Install permanently with: mv $APP /Applications/"
