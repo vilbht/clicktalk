@@ -25,7 +25,21 @@ final class SettingsSeal {
     /// Set when the keychain key could not be read or created.
     private(set) var lastError: String?
 
+    /// True after an update made the old key unreadable and EucLink started a new one.
+    /// Earlier seals no longer verify, so the owner reviews the button and bindings once.
+    /// It only changes how that is explained, never what runs.
+    var keyWasReplaced: Bool { defaults.bool(forKey: "sealKeyReplaced") }
+    func clearKeyWasReplaced() {
+        if keyWasReplaced { defaults.removeObject(forKey: "sealKeyReplaced") }
+    }
+
     /// The secret, read once from the keychain or created on first use.
+    ///
+    /// The read never shows a keychain password prompt. macOS lets only the build that
+    /// created the item read it silently, and without an Apple developer signature every
+    /// update is a different build. Rather than ask for the login password, EucLink
+    /// drops a key it cannot read and starts a new one. That is the safe direction: the
+    /// old seals stop verifying, so nothing runs until the owner approves it again.
     private func key() -> SymmetricKey? {
         if let k = cachedKey { return k }
         let query: [String: Any] = [
@@ -34,17 +48,30 @@ final class SettingsSeal {
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
         ]
         var out: CFTypeRef?
+        SecKeychainSetUserInteractionAllowed(false)
         let status = SecItemCopyMatching(query as CFDictionary, &out)
+        SecKeychainSetUserInteractionAllowed(true)
         if status == errSecSuccess, let data = out as? Data, data.count == 32 {
             cachedKey = SymmetricKey(data: data)
             lastError = nil
             return cachedKey
         }
-        guard status == errSecItemNotFound else {
-            lastError = "EucLink could not read its seal key from the keychain (error \(status))."
-            return nil
+        if status != errSecItemNotFound {
+            let stale: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: Self.service,
+                kSecAttrAccount as String: account,
+            ]
+            let deleted = SecItemDelete(stale as CFDictionary)
+            guard deleted == errSecSuccess || deleted == errSecItemNotFound else {
+                lastError = "EucLink could not read its seal key from the keychain (error \(status)), "
+                    + "or replace it (error \(deleted))."
+                return nil
+            }
+            defaults.set(true, forKey: "sealKeyReplaced")
         }
         var bytes = Data(count: 32)
         let rng = bytes.withUnsafeMutableBytes { buf -> Int32 in

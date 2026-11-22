@@ -803,7 +803,9 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
             if !isApproved(b) {
-                outcome = "\(t.name): not run. This binding changed outside EucLink; review it under Bindings."
+                outcome = seal.keyWasReplaced
+                    ? "\(t.name): not run. EucLink was updated; approve this binding once under Bindings."
+                    : "\(t.name): not run. This binding changed outside EucLink; review it under Bindings."
             } else if b.action.kind == .keystroke && b.action.hold {
                 if AXIsProcessTrusted() {
                     heldKeys[t] = b.action
@@ -976,6 +978,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         s.bindings = bindings
         s.unapproved = s.bindings.filter { !isApproved($0) }.map { $0.id }
         s.deviceApproved = deviceName == nil || trustedDeviceName != nil
+        if s.deviceApproved && s.unapproved.isEmpty { seal.clearKeyWasReplaced() }
         s.accessibility = !s.bindings.contains { $0.action.kind == .keystroke } || AXIsProcessTrusted()
         let procs = processNames()
         s.karabinerRunning = procs.contains {
@@ -1010,9 +1013,14 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             return
         }
         guard s.deviceApproved else {
-            s.health = .warn; s.diagnosis = "Your button choice changed outside EucLink"
-            s.hint = "EucLink ignores it. Open EucLink > Button and choose your button again."
-                + (seal.lastError.map { " " + $0 } ?? "")
+            if seal.keyWasReplaced {
+                s.health = .warn; s.diagnosis = "EucLink was updated: choose your button again"
+                s.hint = "macOS treats the update as a new app, so EucLink asks once. Open EucLink > Button."
+            } else {
+                s.health = .warn; s.diagnosis = "Your button choice changed outside EucLink"
+                s.hint = "EucLink ignores it. Open EucLink > Button and choose your button again."
+                    + (seal.lastError.map { " " + $0 } ?? "")
+            }
             return
         }
         if !s.btPowerOn {
@@ -1085,9 +1093,14 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             return
         }
         if !s.unapproved.isEmpty {
-            s.health = .warn; s.diagnosis = "A binding changed outside EucLink"
-            s.hint = "It will not run until you review it. Open EucLink > Bindings to approve or remove it."
-                + (seal.lastError.map { " " + $0 } ?? "")
+            if seal.keyWasReplaced {
+                s.health = .warn; s.diagnosis = "EucLink was updated: approve your bindings again"
+                s.hint = "macOS treats the update as a new app, so EucLink asks once. Open EucLink > Bindings."
+            } else {
+                s.health = .warn; s.diagnosis = "A binding changed outside EucLink"
+                s.hint = "It will not run until you review it. Open EucLink > Bindings to approve or remove it."
+                    + (seal.lastError.map { " " + $0 } ?? "")
+            }
             return
         }
         if !s.accessibility {

@@ -304,7 +304,9 @@ struct ButtonPage: View {
             PageHeader(title: "Button", subtitle: "Choose the Bluetooth button EucLink listens to.")
             if s.deviceName != nil && !s.deviceApproved {
                 Callout(symbol: "exclamationmark.shield.fill",
-                        text: "Your button choice changed outside EucLink, so EucLink ignores it. Choose your button again below.",
+                        text: state.monitor.seal.keyWasReplaced
+                            ? "EucLink was updated, and macOS treats the update as a new app. Choose your button again below. You only do this once per update."
+                            : "Your button choice changed outside EucLink, so EucLink ignores it. Choose your button again below.",
                         color: Brand.warn)
             }
             Card {
@@ -447,7 +449,9 @@ struct BindingCard: View {
             }
             if !approved {
                 Callout(symbol: "exclamationmark.shield.fill",
-                        text: "This binding changed outside EucLink, so it will not run. Check the action above. If you did not set it, remove it with the trash button and check your Mac for unwanted software.",
+                        text: state.monitor.seal.keyWasReplaced
+                            ? "EucLink was updated, and macOS treats the update as a new app. Check the action above and approve it. You only do this once per update."
+                            : "This binding changed outside EucLink, so it will not run. Check the action above. If you did not set it, remove it with the trash button and check your Mac for unwanted software.",
                         color: Brand.warn)
                 Button("Approve This Binding") { state.monitor.approve(binding.id) }
                     .buttonStyle(PrimaryButtonStyle())

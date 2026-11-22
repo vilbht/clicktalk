@@ -388,7 +388,9 @@ final class AppState: ObservableObject {
     func test(_ id: UUID) -> String? {
         guard let b = binding(id) else { return "binding not found" }
         guard monitor.isApproved(b) else {
-            return "This binding changed outside EucLink. Approve it before testing."
+            return monitor.seal.keyWasReplaced
+                ? "EucLink was updated. Approve this binding once before testing."
+                : "This binding changed outside EucLink. Approve it before testing."
         }
         let err = monitor.run(b.action)
         monitor.log(err.map { "Test failed: \($0)" } ?? "Tested \(b.action.name)")

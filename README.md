@@ -419,8 +419,10 @@ them in five ways:
 If EucLink reports a binding or button choice that changed outside the app and you did not
 change it, remove it and check your Mac for unwanted software.
 
-After updating from a version without sealed settings, EucLink asks once: choose your button
-again under Button, and approve your bindings under Bindings.
+After each update, EucLink asks once: choose your button again under Button, and approve your
+bindings under Bindings. macOS lets only the exact build that created the sealing key read it,
+and without an Apple developer signature every update is a different build. EucLink never asks
+for your keychain password; it starts a new key and has you confirm your settings instead.
 
 ## Limits
 

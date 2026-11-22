@@ -6,6 +6,12 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- After updating in place, macOS asked for the login keychain password so the new build could
+  read the key that seals your settings. EucLink no longer triggers that prompt. It starts a
+  new key instead, and asks you once to choose your button and approve your bindings again.
+
 ## [0.4.10] - 2026-11-22
 
 ### Fixed
