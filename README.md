@@ -3,7 +3,7 @@
 Turn a cheap Bluetooth button into a key for your Mac. Hold it to talk to your dictation app,
 tap it to summon a chat app, or run any Shortcut.
 
-<p align="center"><img src="docs/images/hero.gif" width="820" alt="Pair the Bluetooth button, tap it, and talk: Clicktalk starts listening and your words appear in the text field, while the Clicktalk window shows each step"></p>
+<p align="center"><img src="docs/images/hero.gif" width="820" alt="Three steps. Pair: the button's blue light blinks and it connects to Clicktalk. Tap: press the button and Clicktalk starts listening. Talk: your words appear in the text box."></p>
 
 Clicktalk is a small menu bar app. It takes hold of your Bluetooth clicker, so the key the clicker
 sends (often Volume Up) never reaches other apps. Then it runs the action you chose. A setup
