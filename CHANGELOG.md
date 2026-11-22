@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-11-22
+
 ### Changed
 
 - The Input Monitoring and Accessibility steps are more visual. If EucLink is missing from
