@@ -6,6 +6,12 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- macOS asked for Bluetooth as soon as EucLink started, before the setup guide had explained
+  why. EucLink now makes no Bluetooth calls until you click Allow Bluetooth on the guide's
+  Bluetooth step.
+
 ## [0.4.7] - 2026-11-22
 
 ### Changed

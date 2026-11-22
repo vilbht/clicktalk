@@ -119,6 +119,8 @@ enum GrabState: Equatable {
 struct Snapshot: Equatable {
     var deviceName: String?
     var bluetoothAllowed = true
+    /// False until the owner has answered the Bluetooth prompt.
+    var bluetoothAsked = true
     var btPowerOn = true
     var paired = false
     var connected = false
@@ -140,6 +142,7 @@ struct Snapshot: Equatable {
 
     static func == (a: Snapshot, b: Snapshot) -> Bool {
         a.deviceName == b.deviceName && a.bluetoothAllowed == b.bluetoothAllowed
+            && a.bluetoothAsked == b.bluetoothAsked
             && a.btPowerOn == b.btPowerOn && a.paired == b.paired
             && a.connected == b.connected && a.hid == b.hid && a.inputMonitoring == b.inputMonitoring
             && a.accessibility == b.accessibility && a.grab == b.grab && a.bindings == b.bindings
@@ -367,8 +370,6 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         IOHIDManagerScheduleWithRunLoop(enumManager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
         // Enumeration only; never opened, so it needs no permission.
 
-        connectNote = IOBluetoothDevice.register(forConnectNotifications: self,
-                                                 selector: #selector(btConnected(_:device:)))
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.refresh()
         }
@@ -425,8 +426,14 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
 
     // MARK: data sources
 
+    /// True once the owner allowed Bluetooth. Every IOBluetooth call makes macOS show the
+    /// Bluetooth prompt, so none run before that: the guide asks on its Bluetooth step,
+    /// after explaining why, instead of a prompt appearing at launch.
+    var bluetoothReady: Bool { CBManager.authorization == .allowedAlways }
+
     func pairedDevices() -> [IOBluetoothDevice] {
-        (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
+        guard bluetoothReady else { return [] }
+        return (IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice]) ?? []
     }
 
     func selectedDevice() -> IOBluetoothDevice? {
@@ -922,8 +929,15 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         s.deviceName = deviceName
         let auth = CBManager.authorization
         s.bluetoothAllowed = auth != .denied && auth != .restricted
-        if let hc = IOBluetoothHostController.default() {
-            s.btPowerOn = hc.powerState == kBluetoothHCIPowerStateON
+        s.bluetoothAsked = auth != .notDetermined
+        if bluetoothReady {
+            if connectNote == nil {
+                connectNote = IOBluetoothDevice.register(forConnectNotifications: self,
+                                                         selector: #selector(btConnected(_:device:)))
+            }
+            if let hc = IOBluetoothHostController.default() {
+                s.btPowerOn = hc.powerState == kBluetoothHCIPowerStateON
+            }
         }
         let device = selectedDevice()
         s.paired = device != nil
@@ -971,6 +985,11 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         guard s.bluetoothAllowed else {
             s.health = .bad; s.diagnosis = "Bluetooth access is off for EucLink"
             s.hint = "Open EucLink > Permissions and allow Bluetooth."
+            return
+        }
+        guard s.bluetoothAsked else {
+            s.health = .unknown; s.diagnosis = "Not set up yet"
+            s.hint = "Open the setup guide. It asks for Bluetooth on its second step."
             return
         }
         guard s.deviceName != nil else {
