@@ -1,4 +1,4 @@
-# Clicky
+# Clicktalk
 
 A macOS menu bar app that watches one Bluetooth button and tells you which layer broke
 when Karabiner stops reacting to it. Single Swift file, no dependencies, no Xcode project.
@@ -7,11 +7,11 @@ when Karabiner stops reacting to it. Single Swift file, no dependencies, no Xcod
 
 ```bash
 ./build.sh
-open Clicky.app
+open Clicktalk.app
 ```
 
 First launch: macOS asks for Bluetooth permission. Allow it. Then pick your button under
-**Device** in the menu. Clicky remembers the choice.
+**Device** in the menu. Clicktalk remembers the choice.
 
 ## What the dot means
 
@@ -40,10 +40,10 @@ The first menu line is the diagnosis. The second is the fix.
 ## Actions
 
 - **Reconnect now**: asks macOS to open a connection. Works for classic Bluetooth.
-  A BLE button has to be pressed to wake it; Clicky says so when the request is refused.
+  A BLE button has to be pressed to wake it; Clicktalk says so when the request is refused.
 - **Auto-reconnect**: retries every 20 seconds while disconnected.
 - **Enable Modify events**: sets `ignore: false` for the button in karabiner.json, adding
-  entries if missing. Backs up to `karabiner.json.clicky.bak` first. Karabiner reloads on
+  entries if missing. Backs up to `karabiner.json.clicktalk.bak` first. Karabiner reloads on
   its own.
 - **Restart Karabiner daemons**: finds Karabiner's launchd labels with `launchctl list`
   (they differ between versions) and kickstarts them. Admin prompt for the system daemons.

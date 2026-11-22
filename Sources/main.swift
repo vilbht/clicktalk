@@ -1,4 +1,4 @@
-// Clicky: a menu bar watcher for one Bluetooth button and the Karabiner-Elements
+// Clicktalk: a menu bar watcher for one Bluetooth button and the Karabiner-Elements
 // path it has to travel to become a key press.
 //
 // Layers it checks, top to bottom:
@@ -158,7 +158,7 @@ final class Monitor: NSObject {
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             self?.refresh()
         }
-        log("Clicky started")
+        log("Clicktalk started")
         refresh()
     }
 
@@ -509,7 +509,7 @@ final class Monitor: NSObject {
         if changed == 0 { return "Modify events was already on" }
         profiles[idx]["devices"] = devices
         root["profiles"] = profiles
-        let bak = url.deletingLastPathComponent().appendingPathComponent("karabiner.json.clicky.bak")
+        let bak = url.deletingLastPathComponent().appendingPathComponent("karabiner.json.clicktalk.bak")
         try? FileManager.default.removeItem(at: bak)
         try? FileManager.default.copyItem(at: url, to: bak)
         do {
@@ -518,7 +518,7 @@ final class Monitor: NSObject {
         } catch {
             return "Write failed: \(error.localizedDescription)"
         }
-        log("Enabled Modify events for \(changed) interface(s); backup at karabiner.json.clicky.bak")
+        log("Enabled Modify events for \(changed) interface(s); backup at karabiner.json.clicktalk.bak")
         procCache.at = .distantPast
         refresh()
         return "Enabled Modify events (\(changed) change(s)). Karabiner reloads the file itself."
@@ -610,7 +610,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                              .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)]))
         }
         statusItem.button?.attributedTitle = title
-        statusItem.button?.toolTip = "Clicky: \(s.diagnosis)"
+        statusItem.button?.toolTip = "Clicktalk: \(s.diagnosis)"
     }
 
     // MARK: menu
@@ -734,7 +734,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             li.state = SMAppService.mainApp.status == .enabled ? .on : .off
             menu.addItem(li)
         }
-        menu.addItem(action("Quit Clicky", #selector(quit), key: "q"))
+        menu.addItem(action("Quit Clicktalk", #selector(quit), key: "q"))
     }
 
     // MARK: actions
@@ -744,7 +744,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func enableModify() {
         let msg = monitor.enableModifyEvents()
         let a = NSAlert()
-        a.messageText = "Clicky"
+        a.messageText = "Clicktalk"
         a.informativeText = msg
         a.runModal()
     }
