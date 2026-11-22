@@ -48,19 +48,28 @@ A clicker with several buttons gets one binding per button.
 Keystroke actions need the **Accessibility** permission. Clicktalk asks for it the first
 time you save one.
 
-**After every rebuild**, macOS sees a new signature and silently drops both permissions even
-though the privacy panes still show Clicktalk as on. Turn the entry off and on again, then
-relaunch. Users who build once never see this; it only bites while you are changing the code.
-If a toggle does not take, reset the record and grant again from the menu:
+### If you rebuild often
+
+An ad hoc signature changes on every build, and macOS silently drops both permissions when
+the signature changes, even though the privacy panes still show Clicktalk as on. Users who
+build once never see this. If you are changing the code, run this once:
+
+```bash
+./make-cert.sh
+```
+
+It creates a self-signed code signing certificate in your login keychain, asks for your
+login password once to trust it, and build.sh picks it up automatically. Grant the
+permissions one more time after the next build; they then stick.
+
+To recover a stuck grant without the certificate: quit Clicktalk, turn its entry off and on
+in the pane, then relaunch with `open Clicktalk.app`, not with build.sh, which re-signs.
+If that still fails, clear the records and grant again from the menu:
 
 ```bash
 tccutil reset ListenEvent local.clicktalk
 tccutil reset Accessibility local.clicktalk
 ```
-
-To keep grants across rebuilds, create a self-signed certificate in Keychain Access
-(Certificate Assistant > Create a Certificate, type Code Signing) and build with
-`CODESIGN_ID="Your Cert Name" ./build.sh`.
 
 ## Recipes
 
