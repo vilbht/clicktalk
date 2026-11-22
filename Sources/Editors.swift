@@ -285,7 +285,7 @@ struct AppEditor: View {
                 }
                 Spacer()
                 Button(action.value.isEmpty ? "Choose App…" : "Change…", action: choose)
-                    .buttonStyle(action.value.isEmpty ? AnyButtonStyle(PrimaryButtonStyle()) : AnyButtonStyle(SecondaryButtonStyle()))
+                    .buttonStyle(AdaptiveButtonStyle(prominent: action.value.isEmpty))
             }
             Toggle(isOn: Binding(get: { action.kind == .toggleApp },
                                  set: { action.kind = $0 ? .toggleApp : .openApp })) {
@@ -306,13 +306,6 @@ struct AppEditor: View {
             action.value = url.path
         }
     }
-}
-
-/// Type-erases a ButtonStyle so a ternary can pick between two.
-struct AnyButtonStyle: ButtonStyle {
-    private let make: (ButtonStyleConfiguration) -> AnyView
-    init<S: ButtonStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View { make(configuration) }
 }
 
 struct ShortcutEditor: View {

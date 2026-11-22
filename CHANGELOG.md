@@ -8,6 +8,10 @@ All notable changes to EucLink are listed here. The format follows
 
 ### Changed
 
+- Buttons and switches are now Apple's standard controls instead of drawn ones. On macOS 26
+  and later they use the Liquid Glass styles, and the guide's tab bar sits on glass. On macOS
+  13 to 15 they look native to that version.
+
 - Links to System Settings name the exact place: Open Bluetooth Settings, Open Input Monitoring
   Settings, Open Accessibility Settings.
 - The Input Monitoring and Accessibility steps say that macOS may ask for your password or

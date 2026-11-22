@@ -97,7 +97,138 @@ struct PageHeader: View {
 
 // MARK: - Buttons and switches
 
-struct PrimaryButtonStyle: ButtonStyle {
+// MARK: - Controls
+//
+// Buttons and switches are Apple's standard controls, enhanced where the system allows:
+//
+//   macOS 13 to 15   bordered and prominent buttons, the system switch
+//   macOS 26 and up  the same controls in their Liquid Glass styles
+//
+// The glass styles only exist in the macOS 26 SDK, so that code is compiled only by a
+// toolchain that has it (Swift 6.2 or later); an older toolchain builds the base layer.
+// The README renderer cannot draw system controls, so it asks for the drawn versions
+// through the drawnControls environment value.
+
+private struct DrawnControlsKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    /// True while rendering README images, where system controls cannot be drawn.
+    var drawnControls: Bool {
+        get { self[DrawnControlsKey.self] }
+        set { self[DrawnControlsKey.self] = newValue }
+    }
+}
+
+/// A standard push button: prominent for the main action, bordered otherwise.
+struct AdaptiveButtonStyle: PrimitiveButtonStyle {
+    var prominent: Bool
+    @Environment(\.drawnControls) private var drawn
+
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if drawn {
+            if prominent {
+                Button(configuration).buttonStyle(DrawnPrimaryButtonStyle())
+            } else {
+                Button(configuration).buttonStyle(DrawnSecondaryButtonStyle())
+            }
+        } else {
+            SystemButton(configuration: configuration, prominent: prominent)
+        }
+    }
+}
+
+struct PrimaryButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        AdaptiveButtonStyle(prominent: true).makeBody(configuration: configuration)
+    }
+}
+
+struct SecondaryButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        AdaptiveButtonStyle(prominent: false).makeBody(configuration: configuration)
+    }
+}
+
+private struct SystemButton: View {
+    let configuration: PrimitiveButtonStyleConfiguration
+    let prominent: Bool
+
+    var body: some View { styled.controlSize(.large).tint(Brand.accent) }
+
+    @ViewBuilder private var styled: some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            if prominent {
+                Button(configuration).buttonStyle(.glassProminent)
+            } else {
+                Button(configuration).buttonStyle(.glass)
+            }
+        } else {
+            classic
+        }
+        #else
+        classic
+        #endif
+    }
+
+    @ViewBuilder private var classic: some View {
+        if prominent {
+            Button(configuration).buttonStyle(.borderedProminent)
+        } else {
+            Button(configuration).buttonStyle(.bordered)
+        }
+    }
+}
+
+/// A text link, such as Open Bluetooth Settings.
+struct TextLinkStyle: PrimitiveButtonStyle {
+    @Environment(\.drawnControls) private var drawn
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if drawn {
+            Button(configuration).buttonStyle(DrawnLinkStyle())
+        } else {
+            Button(configuration).buttonStyle(.link).tint(Brand.accent)
+                .font(.system(size: 12, weight: .medium))
+        }
+    }
+}
+
+/// A label on the left and the system switch on the right.
+struct SwitchStyle: ToggleStyle {
+    @Environment(\.drawnControls) private var drawn
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            configuration.label
+            Spacer(minLength: 8)
+            if drawn {
+                DrawnSwitch(isOn: configuration.isOn)
+            } else {
+                Toggle("", isOn: configuration.$isOn)
+                    .labelsHidden().toggleStyle(.switch).tint(Brand.accent)
+            }
+        }
+    }
+}
+
+/// Fills the background of a bar of controls: glass on macOS 26 and later, a quiet tint
+/// before that.
+struct BarBackground: ViewModifier {
+    @Environment(\.drawnControls) private var drawn
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), !drawn {
+            content.glassEffect(.regular, in: Capsule())
+        } else {
+            content.background(Capsule().fill(Color.primary.opacity(0.05)))
+        }
+        #else
+        content.background(Capsule().fill(Color.primary.opacity(0.05)))
+        #endif
+    }
+}
+
+// The drawn versions, used only for README images.
+
+struct DrawnPrimaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -105,52 +236,42 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .padding(.horizontal, 16).padding(.vertical, 8)
             .background(Capsule().fill(Brand.gradient))
-            .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
-            .contentShape(Capsule())
+            .opacity(enabled ? 1 : 0.4)
     }
 }
 
-struct SecondaryButtonStyle: ButtonStyle {
+struct DrawnSecondaryButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .medium))
             .foregroundStyle(.primary)
             .padding(.horizontal, 14).padding(.vertical, 7)
-            .background(Capsule().fill(Color.primary.opacity(configuration.isPressed ? 0.14 : 0.07)))
+            .background(Capsule().fill(Color.primary.opacity(0.07)))
             .opacity(enabled ? 1 : 0.4)
-            .contentShape(Capsule())
     }
 }
 
-struct TextLinkStyle: ButtonStyle {
+struct DrawnLinkStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(Brand.accent)
-            .opacity(configuration.isPressed ? 0.6 : 1)
-            .contentShape(Rectangle())
     }
 }
 
-struct SwitchStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            configuration.label
-            Spacer(minLength: 8)
-            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
-                Capsule()
-                    .fill(configuration.isOn ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Color.primary.opacity(0.15)))
-                    .frame(width: 36, height: 21)
-                Circle().fill(Color.white)
-                    .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
-                    .frame(width: 17, height: 17)
-                    .padding(2)
-            }
-            .animation(.easeInOut(duration: 0.15), value: configuration.isOn)
+struct DrawnSwitch: View {
+    let isOn: Bool
+    var body: some View {
+        ZStack(alignment: isOn ? .trailing : .leading) {
+            Capsule()
+                .fill(isOn ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Color.primary.opacity(0.15)))
+                .frame(width: 36, height: 21)
+            Circle().fill(Color.white)
+                .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+                .frame(width: 17, height: 17)
+                .padding(2)
         }
-        .contentShape(Rectangle())
-        .onTapGesture { configuration.isOn.toggle() }
     }
 }
 

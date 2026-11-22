@@ -57,6 +57,7 @@ enum DocsRenderer {
             .frame(width: size.width, height: size.height)
             .background(transparent ? Color.clear : Brand.window)
             .environment(\.colorScheme, .light)
+            .environment(\.drawnControls, true)
         let renderer = ImageRenderer(content: content)
         renderer.scale = 2
         guard let image = renderer.nsImage,

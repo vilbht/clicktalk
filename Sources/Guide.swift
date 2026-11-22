@@ -133,7 +133,7 @@ struct GuideProgress: View {
             }
         }
         .padding(4)
-        .background(Capsule().fill(Color.primary.opacity(0.05)))
+        .modifier(BarBackground())
         .accessibilityElement()
         .accessibilityLabel("Step \(current + 1) of \(steps.count): \(step.short)")
     }

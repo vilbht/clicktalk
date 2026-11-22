@@ -15,7 +15,7 @@ APP="EucLink.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "Compiling…"
+echo "Compiling with $(swiftc --version 2>&1 | head -1)…"
 swiftc -O -parse-as-library \
   -target "$(uname -m)-apple-macos13.0" \
   -framework AppKit -framework SwiftUI -framework IOBluetooth -framework IOKit \
