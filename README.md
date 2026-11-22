@@ -108,7 +108,11 @@ rather not trust a download, [build it yourself](#build-it-yourself-any-mac).
 
    <img src="docs/images/privacy-security.png" width="198" alt="Privacy & Security in the System Settings sidebar">
 
-3. Scroll down to the message about EucLink and click **Open Anyway**.
+3. Scroll down to the message "EucLink.app" was blocked to protect your Mac, and click
+   **Open Anyway**.
+
+   <img src="docs/images/open-anyway.png" width="480" alt="The Privacy & Security message: EucLink.app was blocked to protect your Mac, with an Open Anyway button">
+
 4. Enter your password, then click **Open Anyway** again.
 
 **Option B: Terminal**
