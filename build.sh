@@ -11,12 +11,6 @@ cd "$(dirname "$0")"
 
 MODE="${1:-install}"
 
-# Clicktalk is this app's earlier name. Both would try to hold the same button.
-if [ "$MODE" != ci ] && { pgrep -xq Clicktalk || [ -e /Applications/Clicktalk.app ]; }; then
-  echo "Found Clicktalk, this app's earlier name. Run ./uninstall.sh to remove it, then build again."
-  exit 1
-fi
-
 APP="EucLink.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
