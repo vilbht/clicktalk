@@ -29,6 +29,13 @@ for service in ListenEvent Accessibility BluetoothAlways; do
 done
 
 if [ "${1:-}" = "--all" ]; then
+  echo "Removing the code-signing trust for Clicktalk Dev…"
+  CERT="$(mktemp)"
+  if security find-certificate -c "Clicktalk Dev" -p >"$CERT" 2>/dev/null; then
+    security remove-trusted-cert "$CERT" >/dev/null 2>&1 \
+      || echo "No trust setting found, or removal was cancelled."
+  fi
+  rm -f "$CERT"
   echo "Deleting the Clicktalk Dev signing certificate…"
   security delete-identity -c "Clicktalk Dev" >/dev/null 2>&1 \
     || echo "No Clicktalk Dev certificate found."

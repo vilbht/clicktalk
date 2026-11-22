@@ -228,6 +228,13 @@ changes on every build, so each rebuild drops both grants. If you change the cod
 It creates a self-signed code signing certificate in your login keychain. `build.sh` then uses it
 automatically, and the grants survive rebuilds.
 
+Each build asks to use the key. Click **Allow**, never **Always Allow**. Always Allow would let
+any program running under your account sign itself as Clicktalk and inherit its permissions.
+
+If you created the certificate with an older version of the script, check the key once. In
+Keychain Access, open the Clicktalk Dev private key, go to Access Control, and empty the
+"Always allow access by these applications" list.
+
 ### Rendering the guide images
 
 `./build.sh docs` renders every guide step from the app's own views with sample data into
@@ -251,15 +258,25 @@ them in three ways:
 
 - **Hardened runtime.** `build.sh` signs the app with the hardened runtime, so other programs
   cannot inject code into it to borrow those permissions.
-- **Limited key access.** The certificate from `make-cert.sh` lets only `codesign` use its key
-  without asking. Any other program that wants the key has to ask you first.
+- **Key used only with your consent.** The certificate from `make-cert.sh` trusts no app to use
+  its key silently, so every signing asks you. This matters because macOS identifies Clicktalk
+  only by its name and this certificate: anyone who can sign with the key can pose as Clicktalk.
 - **Recording only on request.** The shortcut recorder listens only while you record, and
   stops after one shortcut.
 
-One limit remains. Your bindings live in Clicktalk's settings file, which other programs
-running under your user account can change. A program that already runs under your account can
-also watch you in other ways, so Clicktalk does not try to guard against it. If you find a
-shell command binding you did not create, remove it and check your Mac for unwanted software.
+### Known limits
+
+Clicktalk's settings file can be changed by any program running under your user account. That
+file holds your bindings and the identity of your button. A program without Clicktalk's
+permissions might use that to borrow them:
+
+- **Planted shell command.** It could replace a binding's action with a shell command, which runs
+  as part of Clicktalk on your next press.
+- **Planted device identity.** It could point the stored button identity at your keyboard, so
+  Clicktalk reads that keyboard instead.
+
+Neither has been verified on macOS yet. If you find a binding or button you did not set up,
+remove it and check your Mac for unwanted software.
 
 ## Limits
 

@@ -7,12 +7,27 @@
 #        ./make-cert.sh "My Name"  (custom name; pass the same to CODESIGN_ID)
 #
 # macOS asks for your login password once, to trust the certificate for code signing.
+#
+# The key is imported without any app on its "always allow" list, so every use asks you.
+# When build.sh signs, click Allow. Never click Always Allow: that would let any program
+# running under your account sign itself as Clicktalk and inherit its permissions.
 set -euo pipefail
 
 NAME="${1:-Clicktalk Dev}"
 
+check_access() {
+  echo
+  echo "Check the key's access list once:"
+  echo "  1. Open Keychain Access, select the login keychain and search for \"$NAME\"."
+  echo "  2. Expand the certificate, double-click the private key, open Access Control."
+  echo "  3. \"Always allow access by these applications\" must be empty. Remove any entry"
+  echo "     with the minus button, keep \"Confirm before allowing access\", Save Changes."
+  echo "Keys made by older versions of this script listed codesign and security there."
+}
+
 if security find-identity -v -p codesigning | grep -q "\"$NAME\""; then
-  echo "Identity \"$NAME\" already exists. Nothing to do."
+  echo "Identity \"$NAME\" already exists, so nothing was created."
+  check_access
   exit 0
 fi
 
@@ -43,16 +58,18 @@ OPENSSL=/usr/bin/openssl
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
 
 KEYCHAIN="$(security default-keychain -d user | tr -d ' "')"
-# -T lets codesign use the key without a prompt on every build. No other tool gets that
-# access: anything else that wants the key has to ask you first.
-security import "$TMP/id.p12" -k "$KEYCHAIN" -P clicktalk -T /usr/bin/codesign >/dev/null
+# No -T: a trusted-application entry trusts a tool, not whoever runs it, so any program
+# could sign as Clicktalk through it without asking. Without one, every use prompts.
+security import "$TMP/id.p12" -k "$KEYCHAIN" -P clicktalk >/dev/null
 echo "Imported \"$NAME\" into $KEYCHAIN."
 echo "Now trusting it for code signing. macOS will ask for your login password."
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"
 
 if security find-identity -v -p codesigning | grep -q "\"$NAME\""; then
   echo "Done. ./build.sh will sign with \"$NAME\" from now on."
+  echo "Each build asks to use the key: click Allow, never Always Allow."
   echo "Grant Input Monitoring once more after the next build; it then sticks."
+  check_access
 else
   echo "The identity is not valid for code signing yet. Open Keychain Access, find \"$NAME\","
   echo "double-click it, expand Trust, and set Code Signing to Always Trust."

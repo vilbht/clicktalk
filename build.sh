@@ -38,6 +38,7 @@ fi
 # --options runtime turns on the hardened runtime, which stops other programs from
 # injecting code into Clicktalk to borrow its Input Monitoring and Accessibility grants.
 if [ -n "$ID" ]; then
+  echo "macOS asks to use the \"$ID\" key: click Allow, never Always Allow."
   codesign --force --options runtime --sign "$ID" "$APP"
   echo "Signed with \"$ID\"; permissions survive rebuilds."
 else
