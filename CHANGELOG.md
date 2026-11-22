@@ -6,6 +6,8 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-22
+
 ### Fixed
 
 - EucLink was sometimes missing from the Input Monitoring list, so people had to add it with +.
