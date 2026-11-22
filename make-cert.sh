@@ -33,10 +33,14 @@ basicConstraints = critical, CA:false
 subjectKeyIdentifier = hash
 EOF
 
-openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+# Use the system OpenSSL (LibreSSL). A Homebrew or conda OpenSSL 3 writes PKCS12 files
+# with ciphers the macOS keychain importer rejects ("MAC verification failed").
+OPENSSL=/usr/bin/openssl
+"$OPENSSL" req -x509 -newkey rsa:2048 -nodes -days 3650 \
   -keyout "$TMP/key.pem" -out "$TMP/cert.pem" -config "$TMP/cert.cnf" 2>/dev/null
-openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
-  -out "$TMP/id.p12" -passout pass:clicktalk -name "$NAME"
+"$OPENSSL" pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
+  -out "$TMP/id.p12" -passout pass:clicktalk -name "$NAME" \
+  -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
 
 KEYCHAIN="$(security default-keychain -d user | tr -d ' "')"
 # -T lets codesign use the key without a prompt on every build.
