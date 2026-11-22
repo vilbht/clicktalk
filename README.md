@@ -1,20 +1,63 @@
-<p align="center"><img src="docs/images/icon.png" width="120" alt="Clicktalk icon"></p>
+# Clicktalk
 
-<h1 align="center">Clicktalk</h1>
+Turn a cheap Bluetooth button into a key for your Mac. Hold it to talk to your dictation app,
+tap it to summon a chat app, or run any Shortcut.
 
-<p align="center">Turn a cheap Bluetooth button into a key for your Mac.<br>
-Hold it to talk to your dictation app, tap it to summon a chat, or run any Shortcut.</p>
+<p align="center"><img src="docs/images/step-9-done.png" width="420" alt="Clicktalk setup guide, final step"></p>
 
-<p align="center"><img src="docs/images/overview.png" width="640" alt="Clicktalk overview"></p>
+Clicktalk is a small menu bar app. It takes hold of your Bluetooth clicker, so the key the clicker
+sends (often Volume Up) never reaches other apps. Then it runs the action you chose. A setup
+guide walks you through every macOS permission and shows when each one is on.
 
-Clicktalk is a small menu bar app. It grabs your Bluetooth clicker directly, so the key the
-clicker sends (often Volume Up) never reaches other apps, and runs the action you choose.
-No Karabiner, no drivers, no dependencies. A setup guide walks you through every macOS
-permission and tells you the moment each one is on.
+## What Clicktalk does, and what it needs
+
+**Clicktalk does not transcribe or chat by itself.** It turns a button press into a keystroke,
+an app launch, a Shortcut, a link or a command. The work happens in another app that you
+already use. For voice input that is a dictation app, for example:
+
+- [Handy](https://github.com/cjpais/Handy), free and open source. Clicktalk was built and tested
+  with it.
+- Superwhisper, Wispr Flow, MacWhisper or similar apps that start dictation from a shortcut.
+
+Any app works if it can be started with a keyboard shortcut, a link or a Shortcut.
+
+### The shortcut must be a global shortcut
+
+Clicktalk presses keys the same way your keyboard does. For this to work while you are in
+another app, the target app's shortcut must be a **global shortcut**: one the app registers
+system-wide, so it works even when that app is not in front.
+
+1. Open the target app's settings and find its global shortcut. Dictation apps usually call it
+   the recording, transcription or push-to-talk shortcut.
+2. Pick a combination that no other app uses, for example `fn + Space` or `⌥ + Space`.
+3. In Clicktalk, record exactly that combination.
+4. Match how the app behaves:
+   - The app records while the key is held: choose **Push-to-talk** (Hold).
+   - The app starts on one press and stops on the next: choose **Tap to start and stop**.
+
+Shortcuts that only work while their app is in front, such as menu shortcuts, will not work
+from the button. Clicktalk can only trigger what the target app listens for globally.
+
+### How this started: Karabiner-Elements
+
+Clicktalk began as a [Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements) setup.
+Karabiner remapped the clicker's key to the dictation shortcut, and that setup kept breaking
+after reconnects and macOS updates. Clicktalk replaces it with one app. It takes hold of the
+button itself and shows which part failed when something stops working.
+
+You do not need Karabiner-Elements. If you have it installed, it can keep running for your other
+keyboards. Turn off **Modify events** for the button in Karabiner-Elements > Devices, so that
+Clicktalk can take hold of it.
+
+## Before you start
+
+- macOS 13 or later.
+- The Xcode command line tools: `xcode-select --install`.
+- A Bluetooth button paired with your Mac in System Settings > Bluetooth. Camera shutter
+  remotes and presentation clickers work.
+- Your target app installed, with a global shortcut set as described above.
 
 ## Install
-
-Needs macOS 13 or later and the Xcode command line tools (`xcode-select --install`).
 
 ```bash
 git clone https://github.com/vilbht/clicktalk
@@ -22,64 +65,91 @@ cd clicktalk
 ./build.sh
 ```
 
-`build.sh` compiles the app, installs it in `/Applications` and opens it. The setup guide
-starts on first launch.
+`build.sh` compiles the app, installs it in `/Applications` and opens it. The setup guide opens on
+first launch.
 
-## The setup guide
+## Set up, step by step
 
-Nine short steps. Each one checks itself live, so the Continue button lights up as soon as
-macOS reports the step done.
+The guide has nine steps. Each one checks itself, and **Continue** lights up as soon as macOS
+reports the step done. You can close the guide and pick up later from the menu bar dot under
+**Setup Guide**.
 
-| | |
-|---|---|
-| <img src="docs/images/guide-1-welcome.png" width="330"> | <img src="docs/images/guide-2-bluetooth.png" width="330"> |
-| **Welcome.** What you need. Offers to copy the app to Applications first. | **Bluetooth.** Lets Clicktalk see whether the button is connected or asleep. |
-| <img src="docs/images/guide-3-button.png" width="330"> | <img src="docs/images/guide-4-input-monitoring.png" width="330"> |
-| **Button.** Pick your paired clicker. | **Input Monitoring.** Lets Clicktalk hold the button so its key stays private. |
-| <img src="docs/images/guide-5-learn.png" width="330"> | <img src="docs/images/guide-6-action.png" width="330"> |
-| **Learn.** Press the button; Clicktalk learns which key it sends. | **Action.** Pick a preset, then record the shortcut or choose the app. |
-| <img src="docs/images/guide-7-accessibility.png" width="330"> | <img src="docs/images/guide-8-test.png" width="330"> |
-| **Accessibility.** Only when the button presses keys. | **Test.** Press the button and see what happened. |
+*The screenshots come from an earlier build. The current one always shows "of 9" in the step
+counter, and lists connected devices first.*
 
-## What a press can do
+### 1. Welcome
 
-| Action | You supply | Good for |
-|---|---|---|
-| Keystroke, hold | record the shortcut | push-to-talk: key down while the button is held |
-| Keystroke, press | record the shortcut | an app's global hotkey, tap to toggle |
-| Toggle app | pick an app | summon a chat app, press again to hide it |
-| Open app | pick an app | always bring it forward |
-| Run a Shortcut | pick from your Shortcuts | anything the Shortcuts app can do |
-| URL | type it | web chats, `shortcuts://`, any app link |
-| Command | type it | scripts |
+The guide lists what you need. If Clicktalk is not in Applications, it offers to copy itself there
+first. macOS ties permissions to the app's location, so do this before granting anything.
 
-The shortcut recorder also takes modifier-only shortcuts such as `fn` or Right Option, and
-you can type a shortcut instead, for example `cmd+shift+space`.
+### 2. Allow Bluetooth
 
-### Recipes
+Click **Allow Bluetooth**, then **Allow** in the macOS prompt. Clicktalk only uses this to see
+whether your button is connected or asleep.
 
-| Goal | Binding |
-|---|---|
-| Handy, push-to-talk | Keystroke, hold, Handy's shortcut |
-| Handy, toggle mode | Keystroke, press, Handy's shortcut |
-| Superwhisper, MacWhisper, Wispr Flow | Keystroke, hold or press, the app's shortcut |
-| Summon ChatGPT or Claude desktop | Toggle app, or the app's own hotkey |
-| Open a chat and start dictation | Run a Shortcut that does both |
+### 3. Choose your button
 
-Any app with a hotkey, a URL scheme or a Shortcuts action works. There is no per-app code.
+Press your button once. Most clickers connect only when pressed, so it moves to **Connected now**.
+Select it.
 
-## The window
+<p align="center"><img src="docs/images/step-3-button.png" width="480" alt="Choose your button"></p>
 
-Open it from the menu bar dot. It has six pages:
+### 4. Allow Input Monitoring
 
-- **Overview.** The current state, the one fix that matters, and the path a press takes.
-- **Button.** Pick the device, mark it as one that sleeps between presses, reconnect.
-- **Bindings.** One binding per physical button: learn a press, choose its action, test it.
-- **Permissions.** Each permission with its state, an Allow button and the reset commands.
-- **Activity.** Every connection, press and result, newest first.
-- **General.** Launch at login, the setup guide, about.
+1. Click **Allow Input Monitoring**.
+2. In the macOS prompt, choose **Open System Settings**.
+3. Turn Clicktalk on.
+4. If macOS asks to quit and reopen Clicktalk, choose **Later**, then click **Relaunch Clicktalk** in
+   the guide. It reopens on the same step.
 
-## The menu bar dot
+When the step is done, a green note says that Clicktalk now holds your button.
+
+<p align="center"><img src="docs/images/step-4-input-monitoring.png" width="480" alt="Allow Input Monitoring"></p>
+
+### 5. Press your button
+
+Press the button once. Clicktalk learns which key the button sends, for example Volume Up, and shows
+its name. Every clicker is different, so this replaces any device list.
+
+### 6. Choose what it does
+
+Pick a starting point, then fill in the details:
+
+- **Push-to-talk dictation.** Record the dictation app's global shortcut. The key stays down while
+  you hold the button.
+- **Tap to start and stop.** Same, as a single tap.
+- **Summon an app.** Pick the app. A second press hides it.
+- **Run a Shortcut.** Pick one from the Shortcuts app.
+- **Something else.** A link or a shell command.
+
+To record a shortcut, click **Record Shortcut** and press the combination. The target app reacts once
+while you record it; that is expected. You can also click **Type it instead** and write it, for
+example `fn+space` or `right option`.
+
+<p align="center"><img src="docs/images/step-6-action.png" width="480" alt="Choose what the button does"></p>
+
+### 7. Allow Accessibility
+
+Only needed when the button presses keys. Click **Allow Accessibility**, choose **Open System
+Settings** in the prompt, and turn Clicktalk on. For other actions the step says it is not needed.
+
+<p align="center"><img src="docs/images/step-7-accessibility.png" width="480" alt="Allow Accessibility"></p>
+
+### 8. Try it
+
+Press the button. For push-to-talk, hold it, speak, then let go. The step turns green with
+**It works**, and shows what the press did. If nothing happens, wake the button with a press, and
+check that the recorded shortcut matches the target app's global shortcut.
+
+### 9. Done
+
+Turn on **Open Clicktalk at login** so the button works right after you log in.
+
+<p align="center"><img src="docs/images/step-9-done.png" width="480" alt="Setup done"></p>
+
+## Everyday use
+
+### The menu bar dot
 
 | Dot | Label | Meaning |
 |---|---|---|
@@ -89,22 +159,54 @@ Open it from the menu bar dot. It has six pages:
 | yellow | HID | Connected, but macOS has not registered it as an input device yet |
 | red | PERM | A permission is missing |
 | yellow | BIND | No binding, or a binding without an action |
-| yellow | GRAB | Another app, often Karabiner, holds the button |
+| yellow | GRAB | Another app, often Karabiner-Elements, holds the button |
 | grey | ? | Not set up |
 
-Click the dot for the diagnosis, the fix, and the one action that resolves it.
+Click the dot for the diagnosis and a one-click fix.
+
+### The window
+
+Open it from the menu bar dot with **Open Clicktalk**.
+
+- **Overview.** The current state, the fix that matters, and the path a press takes.
+- **Button.** Choose the device, mark it as one that sleeps between presses, reconnect.
+- **Bindings.** One binding per physical button: learn a press, choose its action, test it.
+- **Permissions.** Each permission with its state, an Allow button and reset commands.
+- **Activity.** Every connection, press and result, newest first.
+- **General.** Open at login, the setup guide, about.
+
+### What a press can do
+
+| Action | You supply | Good for |
+|---|---|---|
+| Keystroke, hold | the target app's global shortcut | push-to-talk dictation |
+| Keystroke, press | the target app's global shortcut | tap-to-toggle dictation, app hotkeys |
+| Toggle app | an app | summon a chat app, press again to hide it |
+| Open app | an app | always bring it forward |
+| Run a Shortcut | a Shortcut | anything the Shortcuts app can do |
+| URL | a link | web chats, `shortcuts://`, app links |
+| Command | a shell command | scripts |
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| The button fires, but the target app does nothing | The shortcut is not the app's global shortcut, or another app uses the same one. Check the target app's settings and record it again. |
+| Dot shows `GRAB` | Another app holds the button. In Karabiner-Elements > Devices, turn off Modify events for it. |
+| Dot shows `PERM` after you allowed everything | Open Clicktalk > Permissions, turn the switch off and on in System Settings, then click Relaunch. |
+| Red `BT` while the button still works | The button sleeps between presses. Turn on "Button sleeps between presses" under Button. |
+| The first press after a while does nothing | The button was asleep and that press woke it. Press again. |
 
 ## Uninstall, and a clean reinstall
 
-`uninstall.sh` removes the app, its settings, its permission entries and its login item. The
-source folder stays.
+`uninstall.sh` removes the app, its settings, its permission entries and its login item. Your
+Bluetooth pairing and this source folder stay.
 
 ```bash
 ./uninstall.sh
 ```
 
-To test the first-run experience from scratch, uninstall, then build again. The setup guide
-opens as it would for a new user:
+To go through the setup guide again as a new user would:
 
 ```bash
 ./uninstall.sh && ./build.sh
@@ -112,42 +214,33 @@ opens as it would for a new user:
 
 `./uninstall.sh --all` also deletes the signing certificate described below.
 
-## Building often
+## For developers
 
-macOS ties the Input Monitoring and Accessibility grants to the app's signature. An ad hoc
-signature changes on every build, so each rebuild silently drops both grants. If you change
-the code, run this once:
+### Building often
+
+macOS ties the Input Monitoring and Accessibility grants to the app's signature. An ad hoc signature
+changes on every build, so each rebuild drops both grants. If you change the code, run this once:
 
 ```bash
 ./make-cert.sh
 ```
 
-It creates a self-signed code signing certificate in your login keychain and asks for your
-login password once. `build.sh` uses it automatically, and the grants then survive rebuilds.
+It creates a self-signed code signing certificate in your login keychain. `build.sh` then uses it
+automatically, and the grants survive rebuilds.
 
-## Regenerating the README images
+### Rendering the guide images
 
-The images in `docs/images` are rendered from the app's own views with sample data, so they
-always match the current design:
+`./build.sh docs` renders every guide step from the app's own views with sample data into
+`docs/images/guide-*.png`.
 
-```bash
-./build.sh docs
-```
+### How it works
 
-## If you use Karabiner-Elements
-
-Clicktalk and Karabiner cannot both hold the same device. If the dot shows `GRAB`, open
-Karabiner-Elements > Devices, turn off Modify events for the button, and Clicktalk takes it
-within ten seconds. Everything else in Karabiner keeps working.
-
-## How it works
-
-- IOBluetooth for pairing and connection state; CoreBluetooth only to ask for permission.
-- IOHIDManager opens each of the button's HID interfaces with the seize option, the same
-  mechanism Karabiner uses. If the seize is refused it listens instead and says so.
-- Bindings are learned from real input, so unusual clickers work without a device list.
-- Keystrokes are posted with CGEvent at the HID level, modifiers as real key presses, which
-  is what push-to-talk apps watch for. This is why Accessibility is needed.
+- IOBluetooth for pairing and connection state. CoreBluetooth only asks for permission.
+- IOHIDManager opens each of the button's HID interfaces with the seize option, the same mechanism
+  Karabiner-Elements uses. If another app holds the button, Clicktalk listens instead and says so.
+- Presses are learned from real input, so unusual clickers need no device list.
+- Keystrokes are posted with CGEvent, modifiers as real key presses, which is what push-to-talk apps
+  watch for. This is why Accessibility is needed.
 - SwiftUI for the window and guide, AppKit for the menu bar item. Settings live in
   `~/Library/Preferences/local.clicktalk.plist`. Nothing leaves the Mac.
 
@@ -156,6 +249,12 @@ within ten seconds. Everything else in Karabiner keeps working.
 - The first press after a long sleep may only wake the button. That is the button's firmware.
 - Double press and long press are not told apart yet.
 - The app is not notarized. Building it yourself avoids the Gatekeeper warning.
+
+## Credits
+
+- [Karabiner-Elements](https://github.com/pqrs-org/Karabiner-Elements) by pqrs.org, which this
+  project started from.
+- [Handy](https://github.com/cjpais/Handy), the dictation app Clicktalk was built and tested with.
 
 ## License
 
