@@ -100,6 +100,7 @@ struct GuideContext {
     /// True once Allow Accessibility was clicked in this run, so a reset is only offered
     /// after the normal way has had its chance.
     var accessibilityTried = false
+    var resetKeptInputMonitoring = false
     var testPassed = false
     var lastOutcome: String?
     var launchAtLogin = false
@@ -267,11 +268,25 @@ final class AppState: ObservableObject {
         }
         // After the restart, ask again without another click (see resumePermissionRequest).
         if services.count == 1 { UserDefaults.standard.set(services[0], forKey: "pendingPermissionRequest") }
+        if services.contains("ListenEvent") { UserDefaults.standard.set(true, forKey: "listenEventWasReset") }
         relaunch()
     }
 
+    /// Set at launch when Input Monitoring was reset but macOS still reports it allowed.
+    /// That happens when EucLink was added by hand with +: macOS stores that entry by the
+    /// app's location, which tccutil does not clear, so it has to be removed with -.
+    @Published var resetKeptInputMonitoring = false
+
     /// Called at launch: finishes a Reset and Try Again by asking for the permission.
     func resumePermissionRequest() {
+        if UserDefaults.standard.bool(forKey: "listenEventWasReset") {
+            UserDefaults.standard.removeObject(forKey: "listenEventWasReset")
+            if IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted {
+                resetKeptInputMonitoring = true
+                monitor.log("Input Monitoring is still allowed after the reset: remove EucLink with - in System Settings")
+                return
+            }
+        }
         guard let service = UserDefaults.standard.string(forKey: "pendingPermissionRequest") else { return }
         UserDefaults.standard.removeObject(forKey: "pendingPermissionRequest")
         Task { @MainActor in
@@ -486,6 +501,7 @@ final class AppState: ObservableObject {
         c.trigger = guideBinding?.trigger
         c.accessibility = accessibilityState
         c.accessibilityTried = accessibilityTried
+        c.resetKeptInputMonitoring = resetKeptInputMonitoring
         if let start = testStartedAt {
             // Passed once any bound action ran after the step opened, whatever came after it.
             if let f = monitor.lastFired, f.0 > start {

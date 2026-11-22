@@ -13,6 +13,9 @@ All notable changes to EucLink are listed here. The format follows
   when EucLink reopens it.
 - If macOS refuses a reset, EucLink says so and offers the Terminal command, instead of
   restarting as if it had worked.
+- A reset cannot clear an Input Monitoring entry that was added by hand with +, because macOS
+  stores it by the app's location. EucLink now notices when Input Monitoring stays on after a
+  reset and says to remove the entry with − in System Settings.
 
 ## [0.4.4] - 2026-11-22
 

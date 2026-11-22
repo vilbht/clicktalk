@@ -242,6 +242,13 @@ struct GuideStepView: View {
                                    "Not in the list? Click + below the list, open Applications and choose EucLink."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
                     onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil)
+                if ctx.resetKeptInputMonitoring {
+                    Callout(symbol: "hand.raised.fill",
+                            text: "macOS kept EucLink's Input Monitoring switch, which happens when EucLink was added with +. "
+                                + "Open System Settings > Privacy & Security > Input Monitoring, select EucLink, click −, "
+                                + "then click Allow Input Monitoring here.",
+                            color: Brand.warn)
+                }
                 grabStatus
             }
             // Input Monitoring only takes effect at launch, so restart as soon as it is on.

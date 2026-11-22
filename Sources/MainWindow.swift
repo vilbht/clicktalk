@@ -530,6 +530,12 @@ struct PermissionsPage: View {
                 Text("macOS ties permissions to the exact app build. After an update, or after switching between a download and your own build, it can show EucLink as allowed while ignoring it. Reset clears EucLink's entries and restarts it. Then allow each one again above.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if state.resetKeptInputMonitoring {
+                    Callout(symbol: "hand.raised.fill",
+                            text: "Input Monitoring stayed on after the reset. That happens when EucLink was added with +. "
+                                + "In System Settings > Privacy & Security > Input Monitoring, select EucLink and click −.",
+                            color: Brand.warn)
+                }
                 HStack(spacing: 10) {
                     Button("Reset Permissions and Relaunch") { state.resetPermissionAndRelaunch(Uninstaller.permissions) }
                         .buttonStyle(SecondaryButtonStyle())
