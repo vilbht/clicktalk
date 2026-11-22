@@ -59,9 +59,9 @@ Clicktalk can take hold of it.
 
 ## Install
 
+Clone or download this repository, then run this in its folder:
+
 ```bash
-git clone https://github.com/vilbht/clicktalk
-cd clicktalk
 ./build.sh
 ```
 
@@ -243,6 +243,23 @@ automatically, and the grants survive rebuilds.
   watch for. This is why Accessibility is needed.
 - SwiftUI for the window and guide, AppKit for the menu bar item. Settings live in
   `~/Library/Preferences/local.clicktalk.plist`. Nothing leaves the Mac.
+
+## Security notes
+
+Clicktalk holds two powerful macOS permissions: Input Monitoring and Accessibility. It protects
+them in three ways:
+
+- **Hardened runtime.** `build.sh` signs the app with the hardened runtime, so other programs
+  cannot inject code into it to borrow those permissions.
+- **Limited key access.** The certificate from `make-cert.sh` lets only `codesign` use its key
+  without asking. Any other program that wants the key has to ask you first.
+- **Recording only on request.** The shortcut recorder listens only while you record, and
+  stops after one shortcut.
+
+One limit remains. Your bindings live in Clicktalk's settings file, which other programs
+running under your user account can change. A program that already runs under your account can
+also watch you in other ways, so Clicktalk does not try to guard against it. If you find a
+shell command binding you did not create, remove it and check your Mac for unwanted software.
 
 ## Limits
 

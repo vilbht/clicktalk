@@ -620,8 +620,6 @@ struct GeneralPage: View {
                         Text("Clicktalk \(state.version)").font(.system(size: 14, weight: .semibold))
                         Text("Turn a Bluetooth button into a key for your Mac. MIT licensed.")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
-                        Link("github.com/vilbht/clicktalk", destination: URL(string: "https://github.com/vilbht/clicktalk")!)
-                            .font(.system(size: 12))
                     }
                     Spacer()
                     Button("Quit") { NSApp.terminate(nil) }.buttonStyle(SecondaryButtonStyle())

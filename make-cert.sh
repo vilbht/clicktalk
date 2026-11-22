@@ -43,8 +43,9 @@ OPENSSL=/usr/bin/openssl
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
 
 KEYCHAIN="$(security default-keychain -d user | tr -d ' "')"
-# -T lets codesign use the key without a prompt on every build.
-security import "$TMP/id.p12" -k "$KEYCHAIN" -P clicktalk -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+# -T lets codesign use the key without a prompt on every build. No other tool gets that
+# access: anything else that wants the key has to ask you first.
+security import "$TMP/id.p12" -k "$KEYCHAIN" -P clicktalk -T /usr/bin/codesign >/dev/null
 echo "Imported \"$NAME\" into $KEYCHAIN."
 echo "Now trusting it for code signing. macOS will ask for your login password."
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"

@@ -35,11 +35,13 @@ ID="${CODESIGN_ID:-}"
 if [ -z "$ID" ] && security find-identity -v -p codesigning 2>/dev/null | grep -q '"Clicktalk Dev"'; then
   ID="Clicktalk Dev"
 fi
+# --options runtime turns on the hardened runtime, which stops other programs from
+# injecting code into Clicktalk to borrow its Input Monitoring and Accessibility grants.
 if [ -n "$ID" ]; then
-  codesign --force --sign "$ID" "$APP"
+  codesign --force --options runtime --sign "$ID" "$APP"
   echo "Signed with \"$ID\"; permissions survive rebuilds."
 else
-  codesign --force --sign - "$APP"
+  codesign --force --options runtime --sign - "$APP"
   echo "Signed ad hoc. Permissions reset on every rebuild; run ./make-cert.sh once to avoid that."
 fi
 
