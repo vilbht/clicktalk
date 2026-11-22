@@ -138,13 +138,13 @@ struct AdaptiveButtonStyle: PrimitiveButtonStyle {
 
 struct PrimaryButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        AdaptiveButtonStyle(prominent: true).makeBody(configuration: configuration)
+        Button(configuration).buttonStyle(AdaptiveButtonStyle(prominent: true))
     }
 }
 
 struct SecondaryButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        AdaptiveButtonStyle(prominent: false).makeBody(configuration: configuration)
+        Button(configuration).buttonStyle(AdaptiveButtonStyle(prominent: false))
     }
 }
 
