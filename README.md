@@ -101,7 +101,13 @@ rather not trust a download, [build it yourself](#build-it-yourself-any-mac).
 
 1. Double-click **EucLink** in Applications. macOS says "EucLink.app" Not Opened. Click **Done**,
    not Move to Trash.
-2. Open **System Settings > Privacy & Security**.
+
+   <img src="docs/images/not-opened.png" width="260" alt="The macOS warning: EucLink.app Not Opened, with Move to Trash and Done buttons">
+
+2. Open **System Settings** and click **Privacy & Security** in the sidebar.
+
+   <img src="docs/images/privacy-security.png" width="198" alt="Privacy & Security in the System Settings sidebar">
+
 3. Scroll down to the message about EucLink and click **Open Anyway**.
 4. Enter your password, then click **Open Anyway** again.
 
