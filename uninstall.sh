@@ -17,7 +17,7 @@ remove() {
     return
   fi
 
-  echo "Quitting $name…"
+  echo "Quitting ${name}…"
   pkill -x "$name" 2>/dev/null && sleep 1
 
   for app in "${apps[@]}"; do
@@ -26,7 +26,7 @@ remove() {
     fi
   done
 
-  echo "Removing $name…"
+  echo "Removing ${name}…"
   rm -rf "${apps[@]}"
   defaults delete "$id" 2>/dev/null
   rm -f "$HOME/Library/Preferences/$id.plist"
@@ -40,7 +40,7 @@ remove_cert() {
   local cert
   cert="$(mktemp)"
   if security find-certificate -c "$cert_name" -p >"$cert" 2>/dev/null; then
-    echo "Removing the code-signing trust and certificate for $cert_name…"
+    echo "Removing the code-signing trust and certificate for ${cert_name}…"
     security remove-trusted-cert "$cert" >/dev/null 2>&1 \
       || echo "No trust setting found, or removal was cancelled."
     security delete-identity -c "$cert_name" >/dev/null 2>&1
