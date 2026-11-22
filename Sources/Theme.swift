@@ -433,7 +433,7 @@ struct FlowChain: View {
 }
 
 /// The real app, as a tile the user can drag into a System Settings privacy list.
-/// It carries the app's file URL, like dragging EucLink from Applications in Finder.
+/// The drag carries the app the same way Finder does (see AppDragSourceView).
 struct DragAppTile: View {
     var body: some View {
         VStack(spacing: 8) {
@@ -442,7 +442,7 @@ struct DragAppTile: View {
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(Brand.accent, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
-                .onDrag { NSItemProvider(contentsOf: Bundle.main.bundleURL) ?? NSItemProvider() }
+                .overlay(AppDragSource())
                 .help("Drag EucLink into the list in System Settings")
             Text("Drag me into the list")
                 .font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
@@ -509,4 +509,41 @@ struct DragDemo: View {
     private func mix(_ a: CGPoint, _ b: CGPoint, _ k: Double) -> CGPoint {
         CGPoint(x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k)
     }
+}
+
+/// Starts a drag that carries the app exactly as Finder does: a file URL item, plus the
+/// older list of file names that System Settings' privacy lists read. A SwiftUI drag
+/// sends an item provider instead, which those lists ignore. It also takes the first
+/// click, because the guide window is usually inactive while System Settings is in front.
+final class AppDragSourceView: NSView, NSDraggingSource {
+    private var downEvent: NSEvent?
+    private static let filenames = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { downEvent = event }
+    override func mouseUp(with event: NSEvent) { downEvent = nil }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let down = downEvent else { return }
+        downEvent = nil
+        let url = Bundle.main.bundleURL
+        let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 64, height: 64)
+        let p = convert(down.locationInWindow, from: nil)
+        item.setDraggingFrame(NSRect(x: p.x - 32, y: p.y - 32, width: 64, height: 64), contents: icon)
+        let session = beginDraggingSession(with: [item], event: down, source: self)
+        session.draggingPasteboard.addTypes([Self.filenames], owner: nil)
+        session.draggingPasteboard.setPropertyList([url.path], forType: Self.filenames)
+    }
+
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        context == .outsideApplication ? [.copy, .link, .generic] : []
+    }
+}
+
+struct AppDragSource: NSViewRepresentable {
+    func makeNSView(context: Context) -> AppDragSourceView { AppDragSourceView() }
+    func updateNSView(_ view: AppDragSourceView, context: Context) {}
 }

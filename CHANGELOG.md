@@ -6,6 +6,12 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Dragging the EucLink icon from the guide into a System Settings privacy list did nothing,
+  while dragging the app from Finder worked. The tile now sends the app exactly as Finder
+  does, and takes the first click even while System Settings is in front.
+
 ### Added
 
 - A Permissions section in the README: why each permission is needed and on which step, an
