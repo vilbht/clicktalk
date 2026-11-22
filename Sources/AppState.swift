@@ -243,8 +243,28 @@ final class AppState: ObservableObject {
     /// relaunches so this copy can ask again. The guide reopens on the same step.
     func resetPermissionAndRelaunch(_ services: [String]) {
         let id = Bundle.main.bundleIdentifier ?? "local.euclink"
-        for s in services { PermissionReset.run(s, bundleID: id) }
+        let refused = services.filter { !PermissionReset.run($0, bundleID: id) }
+        guard refused.isEmpty else {
+            monitor.log("macOS refused to reset \(refused.joined(separator: ", "))")
+            let alert = NSAlert()
+            alert.messageText = "macOS did not reset the permission"
+            alert.informativeText = "Quit EucLink, paste this into Terminal, then open EucLink again:\n\n"
+                + refused.map { "tccutil reset \($0) \(id)" }.joined(separator: "\n")
+            alert.addButton(withTitle: "Copy Command")
+            alert.addButton(withTitle: "Cancel")
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(refused.map { "tccutil reset \($0) \(id)" }.joined(separator: "; "),
+                                               forType: .string)
+            }
+            return
+        }
         monitor.log("Reset \(services.joined(separator: ", ")) and relaunched")
+        // System Settings keeps showing the old switch until it is reopened, so quit it now.
+        // EucLink reopens it on the right list when it asks again after the restart.
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences") {
+            app.terminate()
+        }
         // After the restart, ask again without another click (see resumePermissionRequest).
         if services.count == 1 { UserDefaults.standard.set(services[0], forKey: "pendingPermissionRequest") }
         relaunch()

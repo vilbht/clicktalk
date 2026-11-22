@@ -6,6 +6,14 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- After a permission reset, System Settings kept showing EucLink switched on, because it
+  does not refresh while open. Reset now quits System Settings first, so the list is current
+  when EucLink reopens it.
+- If macOS refuses a reset, EucLink says so and offers the Terminal command, instead of
+  restarting as if it had worked.
+
 ## [0.4.4] - 2026-11-22
 
 ### Fixed
