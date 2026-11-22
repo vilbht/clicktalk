@@ -47,6 +47,19 @@ enum GuideStep: Int, CaseIterable {
         case .done: return "Done"
         }
     }
+    var symbol: String {
+        switch self {
+        case .welcome: return "sparkles"
+        case .bluetooth: return "dot.radiowaves.left.and.right"
+        case .pair: return "hand.tap"
+        case .inputMonitoring: return "keyboard"
+        case .learn: return "ear"
+        case .action: return "bolt"
+        case .accessibility: return "accessibility"
+        case .test: return "checkmark.seal"
+        case .done: return "flag.checkered"
+        }
+    }
 }
 
 struct GuideDevice: Identifiable, Equatable {
@@ -270,8 +283,6 @@ final class AppState: ObservableObject {
         for app in NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences") {
             app.terminate()
         }
-        // After the restart, ask again without another click (see resumePermissionRequest).
-        if services.count == 1 { UserDefaults.standard.set(services[0], forKey: "pendingPermissionRequest") }
         if services.contains("ListenEvent") { UserDefaults.standard.set(true, forKey: "listenEventWasReset") }
         relaunch()
     }
@@ -281,7 +292,7 @@ final class AppState: ObservableObject {
     /// app's location, which tccutil does not clear, so it has to be removed with -.
     @Published var resetKeptInputMonitoring = false
 
-    /// Called at launch: finishes a Reset and Try Again by asking for the permission.
+    /// Called at launch: after a reset, notices an Input Monitoring entry that survived it.
     func resumePermissionRequest() {
         if UserDefaults.standard.bool(forKey: "listenEventWasReset") {
             UserDefaults.standard.removeObject(forKey: "listenEventWasReset")
@@ -289,17 +300,6 @@ final class AppState: ObservableObject {
                 resetKeptInputMonitoring = true
                 monitor.log("Input Monitoring is still allowed after the reset: remove EucLink with - in System Settings")
                 return
-            }
-        }
-        guard let service = UserDefaults.standard.string(forKey: "pendingPermissionRequest") else { return }
-        UserDefaults.standard.removeObject(forKey: "pendingPermissionRequest")
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            switch service {
-            case "ListenEvent": self.allowInputMonitoring()
-            case "Accessibility": self.allowAccessibility()
-            case "BluetoothAlways": self.allowBluetooth()
-            default: break
             }
         }
     }
@@ -589,45 +589,6 @@ final class AppState: ObservableObject {
         default:
             if monitor.learning { cancelLearning() }
         }
-        // A step moves on by itself only if it was still open when the owner arrived.
-        // Coming back to a finished step shows Continue instead of bouncing forward.
-        autoArmed = selfCompletingSteps.contains(step) && !isStepComplete(guideContext())
-    }
-
-    // MARK: steps that finish themselves
-
-    /// Steps whose own action completes them: the three permissions, choosing the button,
-    /// the first press and the test. Choosing an action is left out, because it is edited.
-    private var selfCompletingSteps: [GuideStep] {
-        [.bluetooth, .pair, .inputMonitoring, .learn, .accessibility, .test]
-    }
-    private var autoArmed = false
-
-    func isStepComplete(_ c: GuideContext) -> Bool {
-        step == .test ? c.testPassed : canContinue(c)
-    }
-
-    /// Called when the current step turns complete. Shows the result for a moment, then
-    /// goes to the next step.
-    func stepCompleted() {
-        guard autoArmed else { return }
-        autoArmed = false
-        advanceSoon(from: step)
-    }
-
-    private func advanceSoon(from: GuideStep) {
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            if self.step == from, self.isStepComplete(self.guideContext()) { self.nextStep() }
-        }
-    }
-
-    /// Input Monitoring needs a restart. After it, the guide reopens on that step, shows
-    /// it as done, and moves on like the other steps.
-    func resumeGuideAfterRelaunch() {
-        guard UserDefaults.standard.bool(forKey: "guideAdvanceOnLaunch") else { return }
-        UserDefaults.standard.removeObject(forKey: "guideAdvanceOnLaunch")
-        if step == .inputMonitoring, isStepComplete(guideContext()) { advanceSoon(from: step) }
     }
 
     func finishGuide() {

@@ -25,10 +25,6 @@ struct GuideWindowView: View {
         .onAppear {
             state.startTicking()
             state.enteredStep()
-            state.resumeGuideAfterRelaunch()
-        }
-        .onChange(of: state.isStepComplete(ctx)) { complete in
-            if complete { state.stepCompleted() }
         }
     }
 }
@@ -50,7 +46,7 @@ struct GuideFrame: View {
     var body: some View {
         VStack(spacing: 0) {
             GuideProgress(step: step, steps: steps)
-                .padding(.horizontal, 28).padding(.top, 18).padding(.bottom, 14)
+                .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 12)
             Divider()
             if scrolls {
                 ScrollView { content }
@@ -83,14 +79,14 @@ struct GuideFrame: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The one main button. It is the step's own action until the step is done; the step
-    /// then moves on by itself, and the button reads Continue for anyone who came back.
+    /// The one main button. It is the step's own action until the step is done, then it
+    /// reads Continue. Nothing in the guide moves unless this button is clicked.
     private var primary: (title: String, enabled: Bool, run: () -> Void) {
         func permission(_ state: PermState, _ title: String, _ allow: @escaping () -> Void)
             -> (title: String, enabled: Bool, run: () -> Void) {
             switch state {
             case .granted: return ("Continue", true, onNext)
-            case .needsRelaunch: return ("Restarting EucLink…", false, {})
+            case .needsRelaunch: return ("Restart EucLink", true, actions.relaunch)
             default: return (title, true, allow)
             }
         }
@@ -111,26 +107,35 @@ struct GuideFrame: View {
     }
 }
 
+/// The steps as one bar of small tabs, in the manner of a toolbar: a tick for each step
+/// done, the current step spelled out and tinted, the rest as quiet icons. It shows
+/// where you are; it is not clickable.
 struct GuideProgress: View {
     let step: GuideStep
     let steps: [GuideStep]
 
     var body: some View {
         let current = steps.firstIndex(of: step) ?? 0
-        VStack(spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(Array(steps.enumerated()), id: \.offset) { i, _ in
-                    Capsule()
-                        .fill(i <= current ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Color.primary.opacity(0.1)))
-                        .frame(height: 4)
+        HStack(spacing: 2) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { i, s in
+                HStack(spacing: 6) {
+                    Image(systemName: i < current ? "checkmark" : s.symbol)
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 16)
+                    if i == current {
+                        Text(s.short).font(.system(size: 12, weight: .semibold)).lineLimit(1).fixedSize()
+                    }
                 }
-            }
-            HStack {
-                Text("Step \(current + 1) of \(steps.count)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-                Spacer()
-                Text(step.short).font(.system(size: 11, weight: .semibold)).foregroundStyle(Brand.accent)
+                .foregroundStyle(i == current ? Brand.accent : (i < current ? Brand.good : Color.secondary.opacity(0.7)))
+                .padding(.horizontal, i == current ? 12 : 9).padding(.vertical, 7)
+                .background(Capsule().fill(i == current ? Brand.accent.opacity(0.14) : Color.clear))
+                .frame(maxWidth: i == current ? nil : .infinity)
             }
         }
+        .padding(4)
+        .background(Capsule().fill(Color.primary.opacity(0.05)))
+        .accessibilityElement()
+        .accessibilityLabel("Step \(current + 1) of \(steps.count): \(step.short)")
     }
 }
 
@@ -206,7 +211,6 @@ struct PermissionStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             StepHeader(symbol: symbol, title: title, subtitle: why)
-            PermissionTracker(done: done, current: index)
             if state == .granted {
                 let count = done.filter { $0 }.count
                 HStack(spacing: 14) {
@@ -227,9 +231,6 @@ struct PermissionStep: View {
             } else {
             NumberedSteps(items: instructions)
             HStack(spacing: 14) {
-                if state == .needsRelaunch {
-                    Button("Relaunch EucLink", action: actions.relaunch).buttonStyle(SecondaryButtonStyle())
-                }
                 Button("Open System Settings") { actions.openPrivacyPane(anchor) }.buttonStyle(TextLinkStyle())
                 Spacer()
                 PermStatus(state: state)
@@ -308,7 +309,7 @@ struct GuideStepView: View {
                     pane: "Input Monitoring", anchor: "Privacy_ListenEvent",
                     instructions: ["Click Allow Input Monitoring at the bottom of this window. System Settings opens.",
                                    "Find EucLink in the list. Not there? Drag the EucLink icon below into the list.",
-                                   "Turn EucLink on. EucLink restarts by itself to use it."],
+                                   "Turn EucLink on, then click Restart EucLink at the bottom of this window."],
                     state: ctx.inputMonitoring, actions: actions, onAllow: actions.allowInputMonitoring,
                     onReset: ctx.inputMonitoring == .denied ? { actions.resetPermission("ListenEvent") } : nil,
                     dragToAdd: true, done: ctx.permissionsDone, index: 1)
@@ -320,11 +321,6 @@ struct GuideStepView: View {
                             color: Brand.warn)
                 }
                 grabStatus
-            }
-            // Input Monitoring only takes effect at launch, so restart as soon as it is on.
-            .onAppear { if ctx.inputMonitoring == .needsRelaunch { relaunchSoon() } }
-            .onChange(of: ctx.inputMonitoring) { state in
-                if state == .needsRelaunch { relaunchSoon() }
             }
         case .learn: learn
         case .action: chooseAction
@@ -353,12 +349,6 @@ struct GuideStepView: View {
         case .test: test
         case .done: done
         }
-    }
-
-    private func relaunchSoon() {
-        // After the restart the guide shows this step as done for a moment, then moves on.
-        UserDefaults.standard.set(true, forKey: "guideAdvanceOnLaunch")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { actions.relaunch() }
     }
 
     // MARK: steps
@@ -593,56 +583,6 @@ struct GuideStepView: View {
             }
             .frame(width: 32, alignment: .leading)
             Text(text).font(.system(size: 12))
-        }
-    }
-}
-
-/// The three permissions as a row of chips with a count, so progress is plain to see:
-/// a green tick for each one allowed, a ring around the one this step asks for.
-struct PermissionTracker: View {
-    let done: [Bool]
-    let current: Int
-    private let names = ["Bluetooth", "Input Monitoring", "Accessibility"]
-
-    var body: some View {
-        let count = done.filter { $0 }.count
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Text("PERMISSIONS").font(.system(size: 10, weight: .bold)).tracking(0.8)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(count) of 3 done").font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(count >= 3 ? Brand.good : Brand.accent)
-            }
-            HStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { i in
-                    let isDone = i < done.count && done[i]
-                    let isCurrent = i == current && !isDone
-                    HStack(spacing: 7) {
-                        ZStack {
-                            Circle()
-                                .fill(isDone ? Brand.good : (isCurrent ? Brand.accent.opacity(0.15) : Color.primary.opacity(0.07)))
-                                .frame(width: 22, height: 22)
-                            if isDone {
-                                Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
-                            } else {
-                                Text("\(i + 1)").font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(isCurrent ? Brand.accent : Color.secondary)
-                            }
-                        }
-                        Text(names[i]).font(.system(size: 12, weight: isCurrent || isDone ? .semibold : .regular))
-                            .foregroundStyle(isDone ? Brand.good : (isCurrent ? Color.primary : Color.secondary))
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                    }
-                    .padding(.horizontal, 10).padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isDone ? Brand.good.opacity(0.1) : Brand.card))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isCurrent ? Brand.accent : (isDone ? Brand.good.opacity(0.35) : Brand.stroke),
-                                lineWidth: isCurrent ? 1.5 : 1))
-                }
-            }
         }
     }
 }

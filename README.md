@@ -139,10 +139,11 @@ first launch. Building it yourself avoids the Gatekeeper warning and works on In
 
 ## Set up, step by step
 
-The guide has nine steps, with one main button on each: the step's own action, such as
-**Allow Bluetooth**. When macOS reports the step done, the guide shows a green confirmation
-and moves to the next step by itself. Permission steps show a tracker: 1 of 3 done, 2 of 3
-done, 3 of 3 done. You can close the guide and pick up later from the menu bar dot under
+The guide has nine steps and one main button. The button is the step's own action, such as
+**Allow Bluetooth**. When macOS reports the step done, the step shows a green confirmation,
+for example "Bluetooth allowed. 1 of 3 permissions done", and the button becomes **Continue**.
+Nothing moves until you click it. The bar at the top shows where you are, with a tick for
+each step done. You can close the guide and pick up later from the menu bar dot under
 **Setup Guide**.
 
 ### 1. Welcome
@@ -173,8 +174,8 @@ Select it. Here the remote is **BT1818**; the names of other paired devices are 
 1. Click **Allow Input Monitoring**. System Settings opens on the Input Monitoring list.
 2. Find **EucLink** in the list. **Not there?** Drag the dashed EucLink icon from the guide into
    the list. See [If EucLink is not in the list](#if-euclink-is-not-in-the-list).
-3. Turn EucLink on. EucLink restarts by itself to use it, and reopens on the same step.
-4. If macOS asks to quit and reopen EucLink, either choice works.
+3. Turn EucLink on. If macOS asks to quit and reopen EucLink, choose **Later**.
+4. Click **Restart EucLink** in the guide. It reopens on the same step, now allowed.
 5. Still says **Turned off** although the switch is on? Click **Reset and Try Again** in the guide.
 
 When the step is done, a green note says that EucLink now holds your button.
