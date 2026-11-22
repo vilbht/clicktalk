@@ -9,9 +9,11 @@
 tap it to summon a chat app, or run any Shortcut.</p>
 
 <p align="center">
-  <img src="docs/images/step-1.gif" width="32%" alt="Pair: the button's blue light blinks and it connects to EucLink">
-  <img src="docs/images/step-2.gif" width="32%" alt="Tap: press the button and EucLink starts listening">
-  <img src="docs/images/step-3.gif" width="32%" alt="Talk: your words appear in the text box">
+  <img src="docs/images/step-1.gif" width="29%" alt="Pair: the button's blue light blinks and it connects to EucLink">
+  <img src="docs/images/arrow.svg" width="4%" alt="then">
+  <img src="docs/images/step-2.gif" width="29%" alt="Tap: press the button and EucLink starts listening">
+  <img src="docs/images/arrow.svg" width="4%" alt="then">
+  <img src="docs/images/step-3.gif" width="29%" alt="Talk: your words appear in the text box">
 </p>
 
 EucLink is a small menu bar app. It takes hold of your Bluetooth clicker, so the key the clicker
@@ -86,7 +88,8 @@ EucLink can take hold of it.
 
 1. Download the zip from the latest [release](../../releases/latest) and unzip it.
 2. Move **EucLink.app** to Applications.
-3. The app is not notarized, so macOS blocks the first launch. Run this once, then open the app:
+3. The app is not notarized, so macOS blocks the first launch. Open Terminal (press
+   **Cmd+Space**, type `Terminal`, press **Return**), paste this line, and press **Return**:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/EucLink.app

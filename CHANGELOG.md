@@ -6,6 +6,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The three README animations run together at full brightness, joined by arrows.
+- The download steps say how to open Terminal for the one-time quarantine command.
+
 ## [0.3.0] - 2026-11-22
 
 ### Changed
