@@ -1,63 +1,113 @@
 # Clicktalk
 
-A macOS menu bar app that watches one Bluetooth button and tells you which layer broke
-when Karabiner stops reacting to it. Single Swift file, no dependencies, no Xcode project.
+Turn a cheap Bluetooth button into a key for your Mac. One menu bar app, one Swift file,
+no Karabiner, no dependencies.
 
-## Build and run
+Press the button, something happens: your dictation app starts listening, your chat app
+comes forward, a Shortcut runs. Clicktalk grabs the button exclusively, so the key it
+sends never leaks into whatever app is in front.
+
+## Install
+
+Needs macOS 12 or later and the Xcode command line tools (`xcode-select --install`).
 
 ```bash
+git clone https://github.com/vilbht/clicktalk
+cd clicktalk
 ./build.sh
 ```
 
 The script compiles, signs ad hoc, quits any running copy and launches the new one.
+Move `Clicktalk.app` to `/Applications` when you are happy with it.
 
-First launch: macOS asks for Bluetooth permission. Allow it. Then pick your button under
-**Device** in the menu. Clicktalk remembers the choice.
+## Set up in two minutes
+
+1. Pair the button in System Settings > Bluetooth. Any BLE clicker works: camera shutter
+   remotes, presentation clickers, "AB Shutter" buttons, Flic-style buttons in HID mode.
+2. Click the grey dot in the menu bar, open **Device**, pick the button.
+3. Allow **Bluetooth** and **Input Monitoring** when macOS asks. Input Monitoring is what
+   lets Clicktalk read the button instead of the system.
+4. Open **Bindings > Add button binding**, press the button once. Clicktalk learns the key
+   it sends, for example Volume Up or Enter.
+5. Choose the action. Done. The dot turns green.
+
+A clicker with several buttons gets one binding per button.
+
+## Actions
+
+| Action | You supply | Good for |
+|---|---|---|
+| Toggle app | pick an app | summon a chat app, press again to hide it |
+| Open app | pick an app | always bring it forward |
+| Run macOS Shortcut | pick from your Shortcuts list | anything the Shortcuts app can do, no code |
+| Press keystroke | press the combo once | an app's own global hotkey |
+| Hold keystroke | same, choose Hold | push-to-talk: key down while the button is held |
+| Open URL | type it | web chats, `shortcuts://`, any app scheme |
+| Run shell command | type it | scripts |
+
+Keystroke actions need the **Accessibility** permission. Clicktalk asks for it the first
+time you save one.
+
+## Recipes
+
+| Goal | Binding |
+|---|---|
+| Talk to Handy (push-to-talk) | Hold keystroke, set to Handy's shortcut |
+| Talk to Handy (toggle mode) | Press keystroke, Handy's shortcut |
+| Superwhisper, MacWhisper, Wispr Flow | Press or Hold keystroke, the app's hotkey |
+| Summon ChatGPT desktop | Press keystroke ⌥ Space, or Toggle app |
+| Summon Claude desktop | Toggle app, or its hotkey if you set one |
+| Start a Shortcut that opens a chat and starts dictation | Run macOS Shortcut |
+
+Any app that exposes a hotkey, a URL scheme or a Shortcuts action works unchanged. There is
+no per-app integration code and none is needed.
 
 ## What the dot means
 
 | Dot | Label | Meaning |
 |---|---|---|
-| green | | Connected, registered as an input device, Karabiner running and modifying its events |
-| red | BT | Bluetooth off, button not paired, or button disconnected |
-| yellow | HID | Connected over Bluetooth but macOS has not registered it as an input device |
-| red or yellow | KE | Karabiner problem: grabber not running, user agent not running, or Modify events off |
-| grey | ? | No button selected yet |
+| green | | Ready. Button grabbed, bindings set |
+| green | zz | Button asleep between presses, wakes on press |
+| red | BT | Bluetooth off, button not paired, or disconnected |
+| yellow | HID | Connected but macOS has not registered it as an input device yet |
+| red | PERM | Input Monitoring or Accessibility permission missing |
+| yellow | BIND | Grabbed, no binding yet |
+| yellow | GRAB | Listening only: another app, often Karabiner, holds the button |
+| grey | ? | No button selected |
 
-The first menu line is the diagnosis. The second is the fix.
+The first menu line is the diagnosis, the second is the fix. **Recent events** keeps a
+timestamped log: connects, disconnects with their duration, every press and what it fired.
 
-## Checks, in order
+## Buttons that sleep
 
-1. Bluetooth radio on. Button in the paired list. Button connected. Live via IOBluetooth
-   connect and disconnect notifications plus a 3 second poll.
-2. macOS sees the button as an HID device over Bluetooth, matched by product name or by
-   serial equal to the Bluetooth address. Shows kind (keyboard, pointer) and vendor:product.
-3. Karabiner's core service and console user server are in the process list. Both the
-   Karabiner 15 names (`Karabiner-Core-Service`, `Karabiner-Console-User-Server`) and the
-   older ones (`karabiner_grabber`, `karabiner_console_user_server`) are recognised.
-4. `~/.config/karabiner/karabiner.json`, selected profile, has a `devices` entry for the
-   button's vendor and product ID with `ignore: false`. A missing entry on a pointer-only
-   device is flagged, since Karabiner ignores pointing devices by default.
-5. Last line of `/var/log/karabiner/grabber.log` that mentions the button, if readable.
+Most BLE clickers disconnect after a minute idle and reconnect when pressed. Turn on
+**Button sleeps between presses** and Clicktalk shows this as a calm green `zz` instead of a
+red disconnect. The first press after a long sleep may only wake the button; the second
+fires the action. That is the button's firmware, not something software can skip.
 
-## Actions
+## If you already use Karabiner-Elements
 
-- **Reconnect now**: asks macOS to open a connection. Works for classic Bluetooth.
-  A BLE button has to be pressed to wake it; Clicktalk says so when the request is refused.
-- **Auto-reconnect**: retries every 20 seconds while disconnected.
-- **Enable Modify events**: sets `ignore: false` for the button in karabiner.json, adding
-  entries if missing. Backs up to `karabiner.json.clicktalk.bak` first. Karabiner reloads on
-  its own.
-- **Restart Karabiner daemons**: finds Karabiner's launchd labels with `launchctl list`
-  (they differ between versions) and kickstarts them. Admin prompt for the system daemons.
-- **Open**: Karabiner-Elements, EventViewer, Input Monitoring pane, Bluetooth settings,
-  karabiner.json, grabber.log.
-- **Recent events**: timestamped log of every transition, including how long a disconnect
-  lasted.
-- **Launch at login**: macOS 13 and later.
+Clicktalk and Karabiner cannot both hold the same device. If the dot shows `GRAB` and the
+menu says Karabiner claims the button, open Karabiner-Elements > Devices, untick **Modify
+events** for the button, and relaunch Clicktalk. Everything else in Karabiner keeps working.
 
-## Not checked
+## How it works
 
-Input Monitoring permission for Karabiner. Apple does not expose another app's TCC grant.
-If everything is green and a rule still does not fire, open the Input Monitoring pane from
-the menu and confirm Karabiner's core service is allowed.
+- IOBluetooth for pairing and connection state, with connect and disconnect notifications.
+- IOHIDManager to find the button's HID interfaces and open them with the seize option,
+  the same mechanism Karabiner's grabber uses. Falls back to a non-exclusive open if the
+  seize is refused, and says so.
+- Bindings are learned from real HID input, so unusual clickers work without a device list.
+- Keystrokes are posted with CGEvent at the HID tap, which is why Accessibility is needed.
+- Settings live in `~/Library/Preferences/local.clicktalk.plist`. Nothing leaves the Mac.
+
+## Limits
+
+- Return and Escape cannot be recorded as keystroke actions; the recorder dialog eats them.
+- Double-press and long-press are not distinguished yet.
+- The exclusive grab can be refused for some devices. Bindings still fire in listening mode,
+  but the button's original key also reaches macOS.
+
+## License
+
+MIT.
