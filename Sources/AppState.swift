@@ -355,9 +355,14 @@ final class AppState: ObservableObject {
         c.isLearning = monitor.learning
         c.trigger = guideBinding?.trigger
         c.accessibility = accessibilityState
-        if let start = testStartedAt, let o = monitor.lastOutcome, o.0 > start {
-            c.lastOutcome = o.1
-            c.testPassed = !o.1.contains("missing") && !o.1.hasPrefix("Unbound") && !o.1.contains("not found")
+        if let start = testStartedAt {
+            // Passed once any bound action ran after the step opened, whatever came after it.
+            if let f = monitor.lastFired, f.0 > start {
+                c.testPassed = true
+                c.lastOutcome = f.1
+            } else if let o = monitor.lastOutcome, o.0 > start {
+                c.lastOutcome = o.1
+            }
         }
         c.launchAtLogin = launchAtLogin
         return c

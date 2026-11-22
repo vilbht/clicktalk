@@ -212,7 +212,9 @@ func triggerName(usagePage: Int, usage: Int) -> String {
 /// True for HID elements that behave like a button or key, false for axes, wheels,
 /// vendor pages and report padding.
 func isButtonLike(usagePage: Int, usage: Int) -> Bool {
-    guard usage != 0, usagePage < 0xFF00 else { return false }
+    // 0xFFFFFFFF is the placeholder usage of an array input element: it carries no key
+    // of its own, and some clickers send it straight after the real key on every press.
+    guard usage != 0, usage <= 0xFFFF, usagePage < 0xFF00 else { return false }
     switch usagePage {
     case 0x07: return usage >= 0x04
     case 0x09: return true
@@ -235,6 +237,8 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     private(set) var lastPress: (Date, Trigger)?
     /// What the most recent press did, for the test step and the overview.
     private(set) var lastOutcome: (Date, String)?
+    /// The most recent press that ran its action successfully.
+    private(set) var lastFired: (Date, String)?
 
     /// While true, the next press is not run but handed to `onLearned`.
     var learning = false {
@@ -704,6 +708,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             return
         }
         let outcome: String
+        var fired = false
         if let b = bindings.first(where: { $0.trigger == t }) {
             if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
@@ -712,6 +717,7 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
                     heldKeys[t] = b.action
                     postKey(b.action, down: true)
                     outcome = "\(t.name) held → key down \(b.action.value)"
+                    fired = true
                 } else {
                     outcome = "\(t.name): Accessibility permission missing"
                 }
@@ -719,11 +725,17 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
                 outcome = "\(t.name): \(err)"
             } else {
                 outcome = "\(t.name) → \(b.action.name)"
+                fired = true
             }
         } else {
             outcome = "Unbound press: \(t.name)"
         }
-        lastOutcome = (Date(), outcome)
+        let now = Date()
+        if fired { lastFired = (now, outcome) }
+        // A clicker that sends a second, unbound key with every press must not hide the
+        // result of the bound one.
+        let shadowed = !fired && lastFired.map { now.timeIntervalSince($0.0) < 1 } == true
+        if !shadowed { lastOutcome = (now, outcome) }
         log(outcome)
         refreshSoon()
     }
