@@ -1,17 +1,33 @@
 #!/bin/bash
-# Builds Clicktalk.app next to this script. Needs Xcode command line tools (xcode-select --install).
+# Builds Clicktalk.app, installs it in /Applications and opens it.
+# Needs macOS 13 or later and the Xcode command line tools (xcode-select --install).
+#
+#   ./build.sh          build, install in /Applications, open
+#   ./build.sh local    build and open from this folder, without installing
+#   ./build.sh docs     build, then render the README images into docs/images
 set -euo pipefail
 cd "$(dirname "$0")"
 
+MODE="${1:-install}"
 APP="Clicktalk.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-swiftc -O \
-  -framework AppKit -framework IOBluetooth -framework IOKit -framework ServiceManagement \
-  Sources/main.swift -o "$APP/Contents/MacOS/Clicktalk"
+echo "Compiling…"
+swiftc -O -parse-as-library \
+  -target "$(uname -m)-apple-macos13.0" \
+  -framework AppKit -framework SwiftUI -framework IOBluetooth -framework IOKit \
+  -framework CoreBluetooth -framework ServiceManagement \
+  Sources/*.swift -o "$APP/Contents/MacOS/Clicktalk"
 
 cp Info.plist "$APP/Contents/Info.plist"
+
+# The icon is drawn by the app itself, so the repository holds no image assets.
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+"$APP/Contents/MacOS/Clicktalk" --render-iconset "$ICONSET"
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+rm -rf "$(dirname "$ICONSET")"
+
 # Signing identity: CODESIGN_ID if set, else the "Clicktalk Dev" certificate from
 # ./make-cert.sh if present, else ad hoc. Ad hoc signatures change on every build, and
 # macOS drops the Input Monitoring and Accessibility grants when the signature changes.
@@ -24,15 +40,32 @@ if [ -n "$ID" ]; then
   echo "Signed with \"$ID\"; permissions survive rebuilds."
 else
   codesign --force --sign - "$APP"
-  echo "Signed ad hoc. Permissions reset on every rebuild; run ./make-cert.sh once to fix that."
+  echo "Signed ad hoc. Permissions reset on every rebuild; run ./make-cert.sh once to avoid that."
 fi
 
-echo "Built $PWD/$APP"
+if [ "$MODE" = "docs" ]; then
+  "$APP/Contents/MacOS/Clicktalk" --render-docs docs/images
+  echo "README images are in docs/images."
+  exit 0
+fi
 
-# Quit a running copy, otherwise `open` just brings the old binary forward.
+# Quit a running copy, otherwise `open` just brings the old one forward.
 if pgrep -xq Clicktalk; then
-  pkill -x Clicktalk
+  pkill -x Clicktalk || true
   sleep 1
 fi
-open "$APP"
-echo "Launched. Install permanently with: mv $APP /Applications/"
+
+if [ "$MODE" = "local" ]; then
+  open "$APP"
+  echo "Opened $PWD/$APP"
+  exit 0
+fi
+
+DEST="/Applications/Clicktalk.app"
+if rm -rf "$DEST" 2>/dev/null && ditto "$APP" "$DEST"; then
+  open "$DEST"
+  echo "Installed and opened $DEST"
+else
+  open "$APP"
+  echo "Could not write to /Applications. Opened $PWD/$APP instead; the app offers to copy itself."
+fi

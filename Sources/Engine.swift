@@ -1,22 +1,25 @@
-// Clicktalk: turn a Bluetooth button into an action, in one menu bar app.
+// Clicktalk engine: watches one Bluetooth button, grabs it, and runs actions.
+// No UI code lives here; the menu bar item, the window and the setup guide all
+// read `Monitor` and call its methods.
 //
-// Layers, top to bottom. The first failing layer becomes the dot colour and the
-// first line of the menu.
+// Layers, top to bottom. The first failing layer becomes the status.
+//   0. Bluetooth permission for Clicktalk.
 //   1. Bluetooth radio on, button paired, button connected.
 //   2. macOS registered the button as an HID input device.
 //   3. Input Monitoring permission granted to Clicktalk.
 //   4. Clicktalk holds the device exclusively (seized), so its key never reaches macOS.
 //      Falls back to listening, where the original key also passes through.
 //   5. At least one binding: a learned button press mapped to an action.
+//   6. Accessibility permission, when an action presses keys.
 //
 // Karabiner-Elements is not needed. If it is installed and holds the same device,
-// the seize fails and the menu says what to untick.
+// the seize fails and the status says what to untick.
 
 import AppKit
+import Combine
+import CoreBluetooth
 import IOBluetooth
 import IOKit.hid
-import ServiceManagement
-import UniformTypeIdentifiers
 
 // MARK: - Model
 
@@ -103,7 +106,7 @@ struct Action: Codable, Equatable {
     var appName: String { URL(fileURLWithPath: value).deletingPathExtension().lastPathComponent }
 }
 
-struct Binding: Codable, Equatable {
+struct ButtonBinding: Codable, Equatable {
     var id: UUID = UUID()
     var trigger: Trigger
     var action: Action = Action()
@@ -115,6 +118,7 @@ enum GrabState: Equatable {
 
 struct Snapshot: Equatable {
     var deviceName: String?
+    var bluetoothAllowed = true
     var btPowerOn = true
     var paired = false
     var connected = false
@@ -122,7 +126,7 @@ struct Snapshot: Equatable {
     var inputMonitoring = false
     var accessibility = true
     var grab: GrabState = .idle
-    var bindings: [Binding] = []
+    var bindings: [ButtonBinding] = []
     var karabinerRunning = false
     var karabinerModifies = false
     var lastPress: (Date, Trigger)?
@@ -131,7 +135,8 @@ struct Snapshot: Equatable {
     var hint: String?
 
     static func == (a: Snapshot, b: Snapshot) -> Bool {
-        a.deviceName == b.deviceName && a.btPowerOn == b.btPowerOn && a.paired == b.paired
+        a.deviceName == b.deviceName && a.bluetoothAllowed == b.bluetoothAllowed
+            && a.btPowerOn == b.btPowerOn && a.paired == b.paired
             && a.connected == b.connected && a.hid == b.hid && a.inputMonitoring == b.inputMonitoring
             && a.accessibility == b.accessibility && a.grab == b.grab && a.bindings == b.bindings
             && a.karabinerRunning == b.karabinerRunning && a.karabinerModifies == b.karabinerModifies
@@ -217,47 +222,26 @@ func isButtonLike(usagePage: Int, usage: Int) -> Bool {
     }
 }
 
-func keystrokeName(keyCode: UInt16, flags: NSEvent.ModifierFlags, chars: String?) -> String {
-    var s = ""
-    if flags.contains(.control) { s += "⌃" }
-    if flags.contains(.option) { s += "⌥" }
-    if flags.contains(.shift) { s += "⇧" }
-    if flags.contains(.command) { s += "⌘" }
-    if flags.contains(.function) { s += "fn " }
-    let special: [UInt16: String] = [
-        49: "Space", 36: "Return", 48: "Tab", 53: "Escape", 51: "Delete", 117: "Forward Delete",
-        123: "←", 124: "→", 125: "↓", 126: "↑", 115: "Home", 119: "End", 116: "Page Up", 121: "Page Down",
-        122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7", 100: "F8",
-        101: "F9", 109: "F10", 103: "F11", 111: "F12",
-    ]
-    if let n = special[keyCode] { return s + n }
-    if let c = chars, !c.isEmpty { return s + c.uppercased() }
-    return s + "key \(keyCode)"
-}
-
-func cgFlags(_ m: NSEvent.ModifierFlags) -> CGEventFlags {
-    var f: CGEventFlags = []
-    if m.contains(.command) { f.insert(.maskCommand) }
-    if m.contains(.option) { f.insert(.maskAlternate) }
-    if m.contains(.control) { f.insert(.maskControl) }
-    if m.contains(.shift) { f.insert(.maskShift) }
-    if m.contains(.function) { f.insert(.maskSecondaryFn) }
-    return f
-}
-
 // MARK: - Monitor
 
-final class Monitor: NSObject {
+final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
+    let objectWillChange = ObservableObjectPublisher()
+    /// Called after every snapshot change. The menu bar item uses it.
     var onChange: ((Snapshot) -> Void)?
     private(set) var snapshot = Snapshot()
     private(set) var events: [Event] = []
     private(set) var connectedSince: Date?
     private(set) var disconnectedSince: Date?
     private(set) var lastPress: (Date, Trigger)?
+    /// What the most recent press did, for the test step and the overview.
+    private(set) var lastOutcome: (Date, String)?
 
-    /// Set while the "press your button" dialog is open. The next press lands in `learned`.
-    var learning = false
-    private(set) var learned: Trigger?
+    /// While true, the next press is not run but handed to `onLearned`.
+    var learning = false {
+        didSet { objectWillChange.send() }
+    }
+    var onLearned: ((Trigger) -> Void)?
+    private var central: CBCentralManager?
 
     private var enumManager: IOHIDManager!
     private var grabManager: IOHIDManager?
@@ -293,13 +277,13 @@ final class Monitor: NSObject {
 
     var autoReconnect: Bool {
         get { defaults.bool(forKey: "autoReconnect") }
-        set { defaults.set(newValue, forKey: "autoReconnect"); refresh() }
+        set { objectWillChange.send(); defaults.set(newValue, forKey: "autoReconnect"); refresh() }
     }
 
     /// The button disconnects between presses to save battery and wakes on press.
     var sleeps: Bool {
         get { defaults.bool(forKey: "sleeps") }
-        set { defaults.set(newValue, forKey: "sleeps"); refresh() }
+        set { objectWillChange.send(); defaults.set(newValue, forKey: "sleeps"); refresh() }
     }
 
     private(set) var deviceIdents: [HIDIdent] {
@@ -313,10 +297,10 @@ final class Monitor: NSObject {
         }
     }
 
-    var bindings: [Binding] {
+    var bindings: [ButtonBinding] {
         get {
             guard let d = defaults.data(forKey: "bindings") else { return [] }
-            return (try? JSONDecoder().decode([Binding].self, from: d)) ?? []
+            return (try? JSONDecoder().decode([ButtonBinding].self, from: d)) ?? []
         }
         set {
             defaults.set(try? JSONEncoder().encode(newValue), forKey: "bindings")
@@ -356,6 +340,7 @@ final class Monitor: NSObject {
     }
 
     func log(_ text: String) {
+        objectWillChange.send()
         events.insert(Event(date: Date(), text: text), at: 0)
         if events.count > 60 { events.removeLast(events.count - 60) }
         print("[\(timeFmt.string(from: Date()))] \(text)")
@@ -375,6 +360,23 @@ final class Monitor: NSObject {
     }
 
     @objc func btDisconnected(_ note: IOBluetoothUserNotification, device: IOBluetoothDevice) {
+        refresh()
+    }
+
+    // MARK: Bluetooth permission
+
+    var bluetoothAuthorization: CBManagerAuthorization { CBManager.authorization }
+
+    /// Creating a central manager is what makes macOS show the Bluetooth prompt.
+    func requestBluetooth() {
+        if central == nil {
+            central = CBCentralManager(delegate: self, queue: nil)
+            log("Bluetooth access requested")
+        }
+        refreshSoon()
+    }
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
         refresh()
     }
 
@@ -693,14 +695,15 @@ final class Monitor: NSObject {
         }
         guard !pressed.contains(t) else { return } // key repeat
         pressed.insert(t)
+        objectWillChange.send()
         lastPress = (Date(), t)
         if learning {
-            learned = t
             learning = false
             log("Learned press: \(t.name)")
-            NSApp.stopModal(withCode: .OK)
+            onLearned?(t)
             return
         }
+        let outcome: String
         if let b = bindings.first(where: { $0.trigger == t }) {
             if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
@@ -708,19 +711,20 @@ final class Monitor: NSObject {
                 if AXIsProcessTrusted() {
                     heldKeys[t] = b.action
                     postKey(b.action, down: true)
-                    log("\(t.name) held → key down \(b.action.value)")
+                    outcome = "\(t.name) held → key down \(b.action.value)"
                 } else {
-                    requestAccessibility()
-                    log("\(t.name): Accessibility permission missing")
+                    outcome = "\(t.name): Accessibility permission missing"
                 }
             } else if let err = run(b.action) {
-                log("\(t.name): \(err)")
+                outcome = "\(t.name): \(err)"
             } else {
-                log("\(t.name) → \(b.action.name)")
+                outcome = "\(t.name) → \(b.action.name)"
             }
         } else {
-            log("Unbound press: \(t.name)")
+            outcome = "Unbound press: \(t.name)"
         }
+        lastOutcome = (Date(), outcome)
+        log(outcome)
         refreshSoon()
     }
 
@@ -747,7 +751,6 @@ final class Monitor: NSObject {
             return shell("/usr/bin/shortcuts", ["run", a.value])
         case .keystroke:
             guard AXIsProcessTrusted() else {
-                requestAccessibility()
                 return "Accessibility permission missing"
             }
             postKey(a, down: true)
@@ -769,9 +772,13 @@ final class Monitor: NSObject {
     private func postKey(_ a: Action, down: Bool) {
         let src = CGEventSource(stateID: .hidSystemState)
         let wanted = CGEventFlags(rawValue: a.flags)
-        let modifiers: [(CGEventFlags, CGKeyCode)] = [
+        // A modifier-only shortcut, such as Right Option alone, has the modifier as its
+        // main key; it must not also be pressed as one of the extra modifiers.
+        let own = modifierFlag(forKeyCode: a.keyCode)
+        var modifiers: [(CGEventFlags, CGKeyCode)] = [
             (.maskControl, 59), (.maskAlternate, 58), (.maskShift, 56), (.maskCommand, 55), (.maskSecondaryFn, 63),
         ].filter { wanted.contains($0.0) }
+        if let own = own { modifiers.removeAll { $0.0 == own } }
 
         func post(_ code: CGKeyCode, _ isDown: Bool, _ flags: CGEventFlags) {
             guard let e = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: isDown) else { return }
@@ -785,9 +792,11 @@ final class Monitor: NSObject {
                 flags.insert(flag)
                 post(code, true, flags)
             }
+            if let own = own { flags.insert(own) }
             post(CGKeyCode(a.keyCode), true, flags)
         } else {
             var flags = wanted
+            if let own = own { flags.remove(own) }
             post(CGKeyCode(a.keyCode), false, flags)
             for (flag, code) in modifiers.reversed() {
                 flags.remove(flag)
@@ -820,25 +829,13 @@ final class Monitor: NSObject {
         _ = AXIsProcessTrustedWithOptions(opts)
     }
 
-    func installedShortcuts() -> [String] {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
-        p.arguments = ["list"]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        guard (try? p.run()) != nil else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        return String(decoding: data, as: UTF8.self)
-            .split(separator: "\n").map(String.init).filter { !$0.isEmpty }.sorted()
-    }
-
     // MARK: refresh
 
     func refresh() {
         var s = Snapshot()
         s.deviceName = deviceName
+        let auth = CBManager.authorization
+        s.bluetoothAllowed = auth != .denied && auth != .restricted
         if let hc = IOBluetoothHostController.default() {
             s.btPowerOn = hc.powerState == kBluetoothHCIPowerStateON
         }
@@ -871,6 +868,7 @@ final class Monitor: NSObject {
         diagnose(&s)
         recordTransitions(from: snapshot, to: s)
         let changed = s != snapshot
+        if changed { objectWillChange.send() }
         snapshot = s
         hasBaseline = true
         maybeAutoReconnect()
@@ -878,9 +876,14 @@ final class Monitor: NSObject {
     }
 
     private func diagnose(_ s: inout Snapshot) {
+        guard s.bluetoothAllowed else {
+            s.health = .bad; s.diagnosis = "Bluetooth access is off for Clicktalk"
+            s.hint = "Open Clicktalk > Permissions and allow Bluetooth."
+            return
+        }
         guard s.deviceName != nil else {
             s.health = .unknown; s.diagnosis = "No button selected"
-            s.hint = "Pick it under Device."
+            s.hint = "Open Clicktalk and choose your button."
             return
         }
         if !s.btPowerOn {
@@ -889,7 +892,7 @@ final class Monitor: NSObject {
         }
         if !s.paired {
             s.health = .bad; s.diagnosis = "Button is not paired with this Mac"
-            s.hint = "Pair it in Bluetooth settings, then pick it again under Device."
+            s.hint = "Pair it in Bluetooth settings, then choose it in Clicktalk > Button."
             return
         }
         if !s.connected && !(sleeps && !deviceIdents.isEmpty) {
@@ -905,8 +908,7 @@ final class Monitor: NSObject {
         }
         if !s.inputMonitoring || s.grab == .noPermission {
             s.health = .bad; s.diagnosis = "Input Monitoring permission missing"
-            s.hint = "Use Grant Input Monitoring and allow Clicktalk. Already listed and on? Each rebuild "
-                + "changes the app's signature: turn it off and on again, then relaunch."
+            s.hint = "Open Clicktalk > Permissions and allow Input Monitoring. Already on? Relaunch Clicktalk."
             return
         }
         switch s.grab {
@@ -918,7 +920,7 @@ final class Monitor: NSObject {
             } else if e == kReturnExclusiveAccess {
                 s.hint = "Another app holds every interface. Quit Karabiner or the other app and relaunch."
             } else {
-                s.hint = "Unexpected error. Remove the pairing, pair again, and check Recent events."
+                s.hint = "Unexpected error. Remove the pairing, pair again, and check Activity."
             }
             return
         case .listening(let e):
@@ -945,17 +947,17 @@ final class Monitor: NSObject {
         }
         if s.bindings.isEmpty {
             s.health = .warn; s.diagnosis = "Button grabbed, no action bound yet"
-            s.hint = "Use Add button binding and press the button."
+            s.hint = "Open Clicktalk > Bindings, add a binding and press the button."
             return
         }
         if s.bindings.contains(where: { $0.action.kind == .none }) {
             s.health = .warn; s.diagnosis = "A binding has no action"
-            s.hint = "Open Bindings and set one."
+            s.hint = "Open Clicktalk > Bindings and choose what it does."
             return
         }
         if !s.accessibility {
             s.health = .warn; s.diagnosis = "Accessibility permission missing for keystrokes"
-            s.hint = "Use Grant Accessibility, then allow Clicktalk in the privacy pane."
+            s.hint = "Open Clicktalk > Permissions and allow Accessibility."
             return
         }
         if s.grab == .seized {
@@ -1023,586 +1025,3 @@ final class Monitor: NSObject {
         refresh()
     }
 }
-
-// MARK: - Keystroke recording
-
-/// Records the next key press through a listen-only session event tap. Unlike a view's
-/// keyDown, the tap sees a key even when another app owns it as a global hotkey, which
-/// is exactly the case when recording a dictation app's shortcut. Needs Input Monitoring,
-/// which Clicktalk already has by this point.
-final class KeyRecorder {
-    private var tap: CFMachPort?
-    private var source: CFRunLoopSource?
-    var onKey: ((Int, CGEventFlags, String?) -> Void)?
-
-    func start() -> Bool {
-        let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
-        let ctx = Unmanaged.passUnretained(self).toOpaque()
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap, place: .headInsertEventTap, options: .listenOnly,
-            eventsOfInterest: mask,
-            callback: { _, type, event, ctx in
-                if type == .keyDown, let ctx = ctx {
-                    let r = Unmanaged<KeyRecorder>.fromOpaque(ctx).takeUnretainedValue()
-                    let code = Int(event.getIntegerValueField(.keyboardEventKeycode))
-                    let flags = event.flags.intersection(
-                        [.maskCommand, .maskAlternate, .maskControl, .maskShift, .maskSecondaryFn])
-                    let chars = NSEvent(cgEvent: event)?.charactersIgnoringModifiers
-                    DispatchQueue.main.async { r.onKey?(code, flags, chars) }
-                }
-                return Unmanaged.passUnretained(event)
-            }, userInfo: ctx) else { return false }
-        self.tap = tap
-        let src = CFMachPortCreateRunLoopSource(nil, tap, 0)
-        source = src
-        CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        return true
-    }
-
-    func stop() {
-        if let t = tap {
-            CGEvent.tapEnable(tap: t, enable: false)
-            CFMachPortInvalidate(t)
-        }
-        if let s = source { CFRunLoopRemoveSource(CFRunLoopGetMain(), s, .commonModes) }
-        tap = nil
-        source = nil
-    }
-}
-
-func nsFlags(_ f: CGEventFlags) -> NSEvent.ModifierFlags {
-    var m: NSEvent.ModifierFlags = []
-    if f.contains(.maskCommand) { m.insert(.command) }
-    if f.contains(.maskAlternate) { m.insert(.option) }
-    if f.contains(.maskControl) { m.insert(.control) }
-    if f.contains(.maskShift) { m.insert(.shift) }
-    if f.contains(.maskSecondaryFn) { m.insert(.function) }
-    return m
-}
-
-/// Parses "cmd+shift+space", "option+k", "ctrl+alt+f5" into a key code and flags.
-/// US layout key codes; letters, digits, punctuation, function keys and navigation keys.
-func parseKeystroke(_ text: String) -> (keyCode: Int, flags: CGEventFlags, name: String)? {
-    let codes: [String: Int] = [
-        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11,
-        "q": 12, "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21,
-        "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31,
-        "u": 32, "[": 33, "i": 34, "p": 35, "return": 36, "enter": 36, "l": 37, "j": 38, "'": 39,
-        "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48,
-        "space": 49, "`": 50, "delete": 51, "backspace": 51, "escape": 53, "esc": 53,
-        "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97, "f7": 98, "f8": 100,
-        "f9": 101, "f10": 109, "f11": 103, "f12": 111, "home": 115, "end": 119, "pageup": 116,
-        "pagedown": 121, "left": 123, "right": 124, "down": 125, "up": 126, "forwarddelete": 117,
-    ]
-    var flags: CGEventFlags = []
-    var key: String?
-    for raw in text.lowercased().split(whereSeparator: { $0 == "+" || $0 == " " }) {
-        let part = String(raw).trimmingCharacters(in: .whitespaces)
-        switch part {
-        case "cmd", "command", "⌘": flags.insert(.maskCommand)
-        case "opt", "option", "alt", "⌥": flags.insert(.maskAlternate)
-        case "ctrl", "control", "⌃": flags.insert(.maskControl)
-        case "shift", "⇧": flags.insert(.maskShift)
-        case "fn", "function": flags.insert(.maskSecondaryFn)
-        case "": break
-        default: key = part
-        }
-    }
-    guard let k = key, let code = codes[k] else { return nil }
-    let name = keystrokeName(keyCode: UInt16(code), flags: nsFlags(flags), chars: k.count == 1 ? k : nil)
-    return (code, flags, name)
-}
-
-// MARK: - App
-
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    let monitor = Monitor()
-    var statusItem: NSStatusItem!
-    let menu = NSMenu()
-    private var shortcutsMenus: [NSMenu: UUID] = [:]
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        menu.autoenablesItems = false
-        menu.delegate = self
-        statusItem.menu = menu
-        monitor.onChange = { [weak self] s in
-            self?.updateIcon(s)
-            self?.rebuildMenu()
-        }
-        monitor.start()
-        updateIcon(monitor.snapshot)
-        rebuildMenu()
-    }
-
-    func menuWillOpen(_ m: NSMenu) {
-        if m === menu {
-            monitor.refresh()
-            rebuildMenu()
-        }
-    }
-
-    func menuNeedsUpdate(_ m: NSMenu) {
-        guard let id = shortcutsMenus[m] else { return }
-        m.removeAllItems()
-        let names = monitor.installedShortcuts()
-        if names.isEmpty {
-            m.addItem(info("No shortcuts found. Create one in the Shortcuts app."))
-        }
-        for n in names {
-            let i = action(n, #selector(pickShortcut(_:)))
-            i.representedObject = [id.uuidString, n]
-            m.addItem(i)
-        }
-    }
-
-    // MARK: icon
-
-    private func updateIcon(_ s: Snapshot) {
-        var label = ""
-        switch s.health {
-        case .good: label = s.connected ? "" : "zz"
-        case .unknown: label = "?"
-        case .warn, .bad:
-            if !s.btPowerOn || !s.paired || (!s.connected && !monitor.sleeps) { label = "BT" }
-            else if s.connected && s.hid.isEmpty { label = "HID" }
-            else if !s.inputMonitoring || !s.accessibility { label = "PERM" }
-            else if s.bindings.isEmpty { label = "BIND" }
-            else { label = "GRAB" }
-        }
-        let title = NSMutableAttributedString(
-            string: "●",
-            attributes: [.foregroundColor: s.health.color, .font: NSFont.systemFont(ofSize: 15)])
-        if !label.isEmpty {
-            title.append(NSAttributedString(
-                string: " " + label,
-                attributes: [.foregroundColor: NSColor.labelColor,
-                             .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)]))
-        }
-        statusItem.button?.attributedTitle = title
-        statusItem.button?.toolTip = "Clicktalk: \(s.diagnosis)"
-    }
-
-    // MARK: menu helpers
-
-    private func action(_ title: String, _ sel: Selector, key: String = "") -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: sel, keyEquivalent: key)
-        i.target = self
-        i.isEnabled = true
-        return i
-    }
-
-    private func info(_ title: String, bold: Bool = false) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        i.isEnabled = bold
-        if bold {
-            i.attributedTitle = NSAttributedString(
-                string: title, attributes: [.font: NSFont.boldSystemFont(ofSize: 13)])
-        }
-        return i
-    }
-
-    private func submenu(_ title: String, _ m: NSMenu) -> NSMenuItem {
-        let i = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        i.submenu = m
-        i.isEnabled = true
-        return i
-    }
-
-    // MARK: menu
-
-    private func rebuildMenu() {
-        let s = monitor.snapshot
-        menu.removeAllItems()
-        shortcutsMenus.removeAll()
-
-        menu.addItem(info(s.diagnosis, bold: true))
-        if let hint = s.hint { menu.addItem(info(hint)) }
-        menu.addItem(.separator())
-
-        menu.addItem(info("Button: \(s.deviceName ?? "none selected")"))
-        if s.paired {
-            if s.connected {
-                let since = monitor.connectedSince.map { " for \(ago($0))" } ?? ""
-                menu.addItem(info("Bluetooth: connected\(since)"))
-            } else {
-                let since = monitor.disconnectedSince.map { " for \(ago($0))" } ?? ""
-                menu.addItem(info("Bluetooth: \(monitor.sleeps ? "asleep" : "disconnected")\(since)"))
-            }
-        } else if s.deviceName != nil {
-            menu.addItem(info("Bluetooth: not paired"))
-        }
-        if s.hid.isEmpty {
-            menu.addItem(info("Input device: \(s.connected ? "not registered" : "absent")"))
-        } else {
-            for h in s.hid {
-                menu.addItem(info("Input device: \(h.kind) \(h.idString) via \(h.transport)"))
-            }
-        }
-        menu.addItem(info("Input Monitoring: \(monitor.inputMonitoringState)"
-            + (s.inputMonitoring ? "" : ", NOT usable by this build")))
-        let grabText: String
-        switch s.grab {
-        case .idle: grabText = monitor.grabDetail.isEmpty ? "waiting for the button's identity" : monitor.grabDetail
-        case .noPermission: grabText = "blocked, no permission"
-        case .seized: grabText = monitor.grabDetail
-        case .listening(let e): grabText = "\(monitor.grabDetail), seize refused \(hex(e))"
-        case .failed(let e): grabText = "\(monitor.grabDetail), last error \(hex(e))"
-        }
-        menu.addItem(info("Grab: \(grabText)"))
-        if s.karabinerRunning {
-            menu.addItem(info("Karabiner: running, \(s.karabinerModifies ? "CLAIMS this button" : "not touching this button")"))
-        }
-        if let (d, t) = s.lastPress {
-            menu.addItem(info("Last press: \(t.name) at \(timeFmt.string(from: d))"))
-        }
-        menu.addItem(.separator())
-
-        // Bindings
-        let bind = NSMenu()
-        bind.autoenablesItems = false
-        if s.bindings.isEmpty { bind.addItem(info("None yet")) }
-        for b in s.bindings {
-            let sub = NSMenu()
-            sub.autoenablesItems = false
-            let set = NSMenu()
-            set.autoenablesItems = false
-            for kind in ActionKind.allCases where kind != .none {
-                if kind == .shortcut {
-                    let sm = NSMenu()
-                    sm.autoenablesItems = false
-                    sm.delegate = self
-                    shortcutsMenus[sm] = b.id
-                    set.addItem(submenu(kind.label, sm))
-                } else {
-                    let i = action(kind.label + "…", #selector(setAction(_:)))
-                    i.representedObject = [b.id.uuidString, kind.rawValue]
-                    set.addItem(i)
-                }
-            }
-            sub.addItem(submenu("Set action", set))
-            let test = action("Test action", #selector(testBinding(_:)))
-            test.representedObject = b.id.uuidString
-            test.isEnabled = b.action.kind != .none
-            sub.addItem(test)
-            let rm = action("Remove binding", #selector(removeBinding(_:)))
-            rm.representedObject = b.id.uuidString
-            sub.addItem(rm)
-            bind.addItem(submenu("\(b.trigger.name)  →  \(b.action.name)", sub))
-        }
-        bind.addItem(.separator())
-        let add = action("Add button binding…", #selector(addBinding))
-        add.isEnabled = s.deviceName != nil
-        bind.addItem(add)
-        menu.addItem(submenu("Bindings (\(s.bindings.count))", bind))
-        menu.addItem(.separator())
-
-        if !s.inputMonitoring {
-            menu.addItem(action("Grant Input Monitoring…", #selector(grantInputMonitoring)))
-        }
-        if !s.accessibility {
-            menu.addItem(action("Grant Accessibility…", #selector(grantAccessibility)))
-        }
-        let rc = action("Reconnect now", #selector(reconnectNow), key: "r")
-        rc.isEnabled = s.paired && !s.connected
-        menu.addItem(rc)
-        let auto = action("Auto-reconnect every 20s while disconnected", #selector(toggleAuto))
-        auto.state = monitor.autoReconnect ? .on : .off
-        menu.addItem(auto)
-        let sl = action("Button sleeps between presses", #selector(toggleSleeps))
-        sl.state = monitor.sleeps ? .on : .off
-        menu.addItem(sl)
-        menu.addItem(.separator())
-
-        let open = NSMenu()
-        open.autoenablesItems = false
-        open.addItem(action("Input Monitoring privacy pane", #selector(openInputMonitoring)))
-        open.addItem(action("Accessibility privacy pane", #selector(openAccessibility)))
-        open.addItem(action("Bluetooth settings", #selector(openBluetooth)))
-        open.addItem(action("Shortcuts app", #selector(openShortcuts)))
-        if s.karabinerRunning {
-            open.addItem(action("Karabiner-Elements", #selector(openKarabiner)))
-        }
-        menu.addItem(submenu("Open", open))
-
-        let dev = NSMenu()
-        dev.autoenablesItems = false
-        let paired = monitor.pairedDevices()
-        if paired.isEmpty { dev.addItem(info("No paired Bluetooth devices")) }
-        for d in paired {
-            let n = d.name ?? d.addressString ?? "?"
-            let i = action("\(n)\(d.isConnected() ? "  (connected)" : "")", #selector(selectDevice(_:)))
-            i.representedObject = n
-            i.state = n == s.deviceName ? .on : .off
-            dev.addItem(i)
-        }
-        menu.addItem(submenu("Device", dev))
-
-        let ev = NSMenu()
-        ev.autoenablesItems = false
-        if monitor.events.isEmpty { ev.addItem(info("Nothing yet")) }
-        for e in monitor.events.prefix(25) {
-            ev.addItem(info("\(timeFmt.string(from: e.date))  \(e.text)"))
-        }
-        menu.addItem(submenu("Recent events", ev))
-        menu.addItem(.separator())
-
-        if #available(macOS 13, *) {
-            let li = action("Launch at login", #selector(toggleLogin))
-            li.state = SMAppService.mainApp.status == .enabled ? .on : .off
-            menu.addItem(li)
-        }
-        menu.addItem(action("Quit Clicktalk", #selector(quit), key: "q"))
-    }
-
-    // MARK: binding flow
-
-    @objc func addBinding() {
-        guard monitor.inputMonitoringGranted else {
-            grantInputMonitoring()
-            return
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = "Press the button now"
-        a.informativeText = "Clicktalk learns which key the button sends. Cancel with the button below."
-        a.addButton(withTitle: "Cancel")
-        monitor.learning = true
-        let r = a.runModal()
-        monitor.learning = false
-        guard r == .OK, let t = monitor.learned else { return }
-        if let existing = monitor.bindings.first(where: { $0.trigger == t }) {
-            monitor.log("\(t.name) is already bound to \(existing.action.name)")
-            chooseAction(for: existing.id)
-            return
-        }
-        let b = Binding(trigger: t)
-        monitor.bindings.append(b)
-        chooseAction(for: b.id)
-    }
-
-    private func chooseAction(for id: UUID) {
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = "What should the button do?"
-        a.informativeText = "You can change this later under Bindings."
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 260, height: 26), pullsDown: false)
-        let kinds = ActionKind.allCases.filter { $0 != .none }
-        for k in kinds { popup.addItem(withTitle: k.label) }
-        a.accessoryView = popup
-        a.addButton(withTitle: "Next")
-        a.addButton(withTitle: "Later")
-        guard a.runModal() == .alertFirstButtonReturn else { return }
-        configure(kind: kinds[popup.indexOfSelectedItem], for: id)
-    }
-
-    @objc func setAction(_ sender: NSMenuItem) {
-        guard let pair = sender.representedObject as? [String], pair.count == 2,
-              let id = UUID(uuidString: pair[0]), let kind = ActionKind(rawValue: pair[1]) else { return }
-        configure(kind: kind, for: id)
-    }
-
-    @objc func pickShortcut(_ sender: NSMenuItem) {
-        guard let pair = sender.representedObject as? [String], pair.count == 2,
-              let id = UUID(uuidString: pair[0]) else { return }
-        update(id) { $0.action = Action(kind: .shortcut, value: pair[1]) }
-    }
-
-    private func configure(kind: ActionKind, for id: UUID) {
-        NSApp.activate(ignoringOtherApps: true)
-        switch kind {
-        case .openApp, .toggleApp:
-            let panel = NSOpenPanel()
-            panel.title = "Choose the app"
-            panel.directoryURL = URL(fileURLWithPath: "/Applications")
-            panel.allowedContentTypes = [.application]
-            panel.canChooseDirectories = false
-            panel.allowsMultipleSelection = false
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            update(id) { $0.action = Action(kind: kind, value: url.path) }
-        case .shortcut:
-            let names = monitor.installedShortcuts()
-            guard !names.isEmpty else {
-                alert("No shortcuts found", "Create one in the Shortcuts app first, then pick it under Bindings.")
-                return
-            }
-            let a = NSAlert()
-            a.messageText = "Which Shortcut?"
-            let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 300, height: 26), pullsDown: false)
-            popup.addItems(withTitles: names)
-            a.accessoryView = popup
-            a.addButton(withTitle: "Save")
-            a.addButton(withTitle: "Cancel")
-            guard a.runModal() == .alertFirstButtonReturn else { return }
-            update(id) { $0.action = Action(kind: .shortcut, value: popup.titleOfSelectedItem ?? "") }
-        case .keystroke:
-            var keyCode = 0
-            var flags: CGEventFlags = []
-            var name = ""
-            let recorder = KeyRecorder()
-            var recorded = false
-            if recorder.start() {
-                let a = NSAlert()
-                a.messageText = "Press the keystroke now"
-                a.informativeText = "Hold the modifiers and tap the key, for example ⌥ Space. "
-                    + "If another app owns that shortcut it will fire once; that is fine."
-                a.addButton(withTitle: "Type it instead")
-                a.addButton(withTitle: "Cancel")
-                recorder.onKey = { code, f, chars in
-                    keyCode = code
-                    flags = f
-                    name = keystrokeName(keyCode: UInt16(code), flags: nsFlags(f), chars: chars)
-                    recorded = true
-                    NSApp.stopModal(withCode: .OK)
-                }
-                let r = a.runModal()
-                recorder.stop()
-                if r == .alertSecondButtonReturn { return }
-                if r == .OK && recorded {
-                    // fall through to the Press/Hold question
-                } else if r != .alertFirstButtonReturn {
-                    return
-                }
-            }
-            if !recorded {
-                guard let typed = askText("Type the keystroke",
-                                          "Examples: cmd+shift+space, option+k, ctrl+alt+f5.", initial: "") else { return }
-                guard let parsed = parseKeystroke(typed) else {
-                    alert("Could not read that", "Use names like cmd, shift, option, ctrl, fn and a key such as space, k or f5.")
-                    return
-                }
-                keyCode = parsed.keyCode
-                flags = parsed.flags
-                name = parsed.name
-            }
-            let mode = NSAlert()
-            mode.messageText = "How should \(name) be sent?"
-            mode.informativeText = "Press: a quick tap, for toggles and app hotkeys. "
-                + "Hold: key stays down while the button is held, for push-to-talk dictation such as Handy."
-            mode.addButton(withTitle: "Press")
-            mode.addButton(withTitle: "Hold")
-            let hold = mode.runModal() == .alertSecondButtonReturn
-            update(id) {
-                $0.action = Action(kind: .keystroke, value: name, keyCode: keyCode,
-                                   flags: flags.rawValue, hold: hold)
-            }
-            if !AXIsProcessTrusted() { monitor.requestAccessibility() }
-        case .url:
-            guard let v = askText("Open which URL?", "Any URL works: https://…, or an app scheme.",
-                                  initial: "https://") else { return }
-            update(id) { $0.action = Action(kind: .url, value: v) }
-        case .shell:
-            guard let v = askText("Run which command?", "Runs with /bin/sh -c. Output is discarded; "
-                                  + "a non-zero exit is logged under Recent events.", initial: "") else { return }
-            update(id) { $0.action = Action(kind: .shell, value: v) }
-        case .none:
-            break
-        }
-    }
-
-    private func update(_ id: UUID, _ change: (inout Binding) -> Void) {
-        var all = monitor.bindings
-        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
-        change(&all[i])
-        monitor.bindings = all
-        monitor.log("Bound \(all[i].trigger.name) → \(all[i].action.name)")
-    }
-
-    private func askText(_ title: String, _ message: String, initial: String) -> String? {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = message
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
-        field.stringValue = initial
-        a.accessoryView = field
-        a.addButton(withTitle: "Save")
-        a.addButton(withTitle: "Cancel")
-        a.layout()
-        a.window.initialFirstResponder = field
-        guard a.runModal() == .alertFirstButtonReturn else { return nil }
-        let v = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        return v.isEmpty ? nil : v
-    }
-
-    private func alert(_ title: String, _ message: String) {
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = message
-        a.runModal()
-    }
-
-    @objc func testBinding(_ sender: NSMenuItem) {
-        guard let id = UUID(uuidString: sender.representedObject as? String ?? ""),
-              let b = monitor.bindings.first(where: { $0.id == id }) else { return }
-        if let err = monitor.run(b.action) { alert("Action failed", err) } else { monitor.log("Tested \(b.action.name)") }
-    }
-
-    @objc func removeBinding(_ sender: NSMenuItem) {
-        guard let id = UUID(uuidString: sender.representedObject as? String ?? "") else { return }
-        monitor.bindings.removeAll { $0.id == id }
-        monitor.log("Removed binding")
-    }
-
-    // MARK: other actions
-
-    @objc func grantInputMonitoring() {
-        monitor.requestInputMonitoring()
-        openInputMonitoring()
-    }
-
-    @objc func grantAccessibility() {
-        monitor.requestAccessibility()
-    }
-
-    @objc func reconnectNow() { monitor.reconnect(manual: true) }
-    @objc func toggleAuto() { monitor.autoReconnect.toggle() }
-    @objc func toggleSleeps() { monitor.sleeps.toggle() }
-    @objc func quit() { NSApp.terminate(nil) }
-
-    @objc func selectDevice(_ sender: NSMenuItem) {
-        monitor.deviceName = sender.representedObject as? String
-    }
-
-    @objc func toggleLogin() {
-        guard #available(macOS 13, *) else { return }
-        let svc = SMAppService.mainApp
-        do {
-            if svc.status == .enabled { try svc.unregister() } else { try svc.register() }
-            monitor.log(svc.status == .enabled ? "Launch at login on" : "Launch at login off")
-        } catch {
-            monitor.log("Launch at login: \(error.localizedDescription)")
-        }
-    }
-
-    private func openPane(_ s: String) {
-        if let u = URL(string: s) { NSWorkspace.shared.open(u) }
-    }
-
-    @objc func openInputMonitoring() {
-        openPane("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
-    }
-    @objc func openAccessibility() {
-        openPane("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    }
-    @objc func openBluetooth() { openPane("x-apple.systempreferences:com.apple.BluetoothSettings") }
-    @objc func openShortcuts() {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        p.arguments = ["-a", "Shortcuts"]
-        try? p.run()
-    }
-    @objc func openKarabiner() {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        p.arguments = ["-a", "Karabiner-Elements"]
-        try? p.run()
-    }
-}
-
-let app = NSApplication.shared
-let delegate = AppDelegate()
-app.delegate = delegate
-app.run()
