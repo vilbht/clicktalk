@@ -168,11 +168,13 @@ Select it. Here the remote is **BT1818**; the names of other paired devices are 
 
 ### 4. Allow Input Monitoring
 
-1. Click **Allow Input Monitoring**.
-2. In the macOS prompt, choose **Open System Settings**.
-3. Turn EucLink on.
-4. If macOS asks to quit and reopen EucLink, choose **Later**, then click **Relaunch EucLink** in
-   the guide. It reopens on the same step.
+1. Click **Allow Input Monitoring**. System Settings opens on the Input Monitoring list.
+2. Find **EucLink** in the list. **Not there?** Drag the dashed EucLink icon from the guide into
+   the list. Or click **+** below the list, press **Cmd+Shift+A** to jump to Applications, choose
+   EucLink and click **Open**.
+3. Turn EucLink on. EucLink restarts by itself to use it, and reopens on the same step.
+4. If macOS asks to quit and reopen EucLink, either choice works.
+5. Still says **Turned off** although the switch is on? Click **Reset and Try Again** in the guide.
 
 When the step is done, a green note says that EucLink now holds your button.
 
@@ -205,8 +207,12 @@ example `fn+space` or `right option`.
 
 ### 7. Allow Accessibility
 
-Only needed when the button presses keys. Click **Allow Accessibility**, choose **Open System
-Settings** in the prompt, and turn EucLink on. For other actions the step says it is not needed.
+Only needed when the button presses keys. For other actions the step says it is not needed.
+
+1. Click **Allow Accessibility**. System Settings opens on the Accessibility list.
+2. Find **EucLink** in the list. **Not there?** Drag the dashed EucLink icon from the guide into
+   the list, or add it with **+** as in step 4.
+3. Turn EucLink on. This one works without a restart.
 
 <p align="center"><img src="docs/images/step-7-accessibility.png" width="480" alt="Allow Accessibility"></p>
 
