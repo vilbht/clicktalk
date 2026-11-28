@@ -10,6 +10,11 @@ All notable changes to EucLink are listed here. The format follows
 
 ### Added
 
+- Gestures. One button can have a press, a double press and a long press, each with its own
+  action. Add Binding and press the same button again to add the next one. A button with only
+  a press still acts instantly; with more gestures, a press waits briefly (0.3 seconds by
+  default, adjustable) to tell them apart. Existing bindings become press bindings and keep
+  their approval.
 - An optional update check, off by default. Turn on "Check for updates when EucLink opens"
   in General or on the guide's last step, or click Check Now. EucLink asks GitHub for the
   latest version number and, if there is a newer one, shows a message with a button that

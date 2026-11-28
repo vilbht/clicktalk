@@ -391,7 +391,7 @@ struct BindingsPage: View {
         let s = state.monitor.snapshot
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
-                PageHeader(title: "Bindings", subtitle: "What each press does. A clicker with several buttons gets one binding per button.")
+                PageHeader(title: "Bindings", subtitle: "What each press does. Each button can have a press, a double press and a long press. Add Binding, then press the same button again for the next one.")
                 Spacer()
                 if !state.isLearningNew {
                     Button("Add Binding") { state.learnNewBinding() }
@@ -418,8 +418,33 @@ struct BindingsPage: View {
             ForEach(s.bindings, id: \.id) { b in
                 BindingCard(state: state, binding: b, expanded: state.editingID == b.id)
             }
+            if usesGestures(s.bindings) {
+                Card {
+                    HStack(alignment: .center, spacing: 12) {
+                        SettingLabel(title: "Double and long press timing",
+                                     detail: "How quickly a second press must follow, and how long a press must last to count as long. A button with a double or long press waits this long before a single press runs.")
+                        Spacer()
+                        Picker("", selection: Binding(get: { timing(state.monitor.gestureWindow) },
+                                                      set: { state.monitor.gestureWindow = $0 })) {
+                            Text("Quick").tag(0.2)
+                            Text("Normal").tag(0.3)
+                            Text("Relaxed").tag(0.45)
+                        }
+                        .labelsHidden().pickerStyle(.segmented).frame(width: 230)
+                    }
+                }
+            }
         }
     }
+}
+
+private func usesGestures(_ bindings: [ButtonBinding]) -> Bool {
+    bindings.contains { $0.gesture != .press }
+}
+
+/// The nearest of the three timing choices, for the picker.
+private func timing(_ v: Double) -> Double {
+    [0.2, 0.3, 0.45].min { abs($0 - v) < abs($1 - v) } ?? 0.3
 }
 
 struct BindingCard: View {
@@ -430,10 +455,18 @@ struct BindingCard: View {
 
     private var approved: Bool { state.monitor.isApproved(binding) }
 
+    /// True when this binding's button also has a double or long press, so a press waits.
+    private var waits: Bool {
+        binding.gesture == .press && state.monitor.bindings.contains {
+            $0.trigger == binding.trigger && $0.gesture != .press
+        }
+    }
+
     var body: some View {
         Card {
             HStack(spacing: 10) {
                 Badge(text: binding.trigger.name, color: Brand.accent, symbol: "hand.point.up.left.fill")
+                Badge(text: binding.gesture.label, color: Brand.accent2, symbol: binding.gesture.symbol)
                 Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)).foregroundStyle(.tertiary)
                 Image(systemName: binding.action.kind.symbol).foregroundStyle(.secondary)
                 Text(binding.action.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
@@ -460,6 +493,19 @@ struct BindingCard: View {
                 Text(e).font(.system(size: 11)).foregroundStyle(Brand.bad)
             }
             if expanded {
+                Divider().padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("GESTURE").font(.system(size: 10, weight: .bold)).tracking(0.8).foregroundStyle(.secondary)
+                    Picker("", selection: Binding(get: { binding.gesture }, set: { state.setGesture(binding.id, $0) })) {
+                        ForEach(Gesture.allCases, id: \.self) { g in Text(g.label).tag(g) }
+                    }
+                    .labelsHidden().pickerStyle(.segmented).frame(maxWidth: 360)
+                    Text(waits
+                         ? "This button also has a double or long press, so this press waits \(Int(state.monitor.gestureWindow * 1000)) ms to be sure."
+                         : binding.gesture.explanation)
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Divider().padding(.vertical, 4)
                 ActionEditor(action: Binding(
                     get: { state.binding(binding.id)?.action ?? Action() },

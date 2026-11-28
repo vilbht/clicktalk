@@ -63,55 +63,6 @@ struct HIDIdent: Codable, Equatable {
     var isEmpty: Bool { vendorID == 0 && productID == 0 && product.isEmpty }
 }
 
-struct Trigger: Codable, Equatable, Hashable {
-    var usagePage: Int
-    var usage: Int
-    var name: String { triggerName(usagePage: usagePage, usage: usage) }
-}
-
-enum ActionKind: String, Codable, CaseIterable {
-    case none, toggleApp, openApp, shortcut, keystroke, url, shell
-    var label: String {
-        switch self {
-        case .none: return "No action"
-        case .toggleApp: return "Toggle app (show or hide)"
-        case .openApp: return "Open app"
-        case .shortcut: return "Run macOS Shortcut"
-        case .keystroke: return "Press keystroke"
-        case .url: return "Open URL"
-        case .shell: return "Run shell command"
-        }
-    }
-}
-
-struct Action: Codable, Equatable {
-    var kind: ActionKind = .none
-    var value: String = ""        // app path, shortcut name, URL, command, or keystroke label
-    var keyCode: Int = 0
-    var flags: UInt64 = 0
-    /// Keystroke only: key down while the button is held, key up on release.
-    /// Needed for push-to-talk dictation apps such as Handy.
-    var hold: Bool = false
-    var name: String {
-        switch kind {
-        case .none: return "no action"
-        case .toggleApp: return "toggle \(appName)"
-        case .openApp: return "open \(appName)"
-        case .shortcut: return "shortcut “\(value)”"
-        case .keystroke: return "\(hold ? "hold" : "press") \(value)"
-        case .url: return "open \(value)"
-        case .shell: return "run “\(value)”"
-        }
-    }
-    var appName: String { URL(fileURLWithPath: value).deletingPathExtension().lastPathComponent }
-}
-
-struct ButtonBinding: Codable, Equatable {
-    var id: UUID = UUID()
-    var trigger: Trigger
-    var action: Action = Action()
-}
-
 enum GrabState: Equatable {
     case idle, noPermission, seized, listening(Int32), failed(Int32)
 }
@@ -182,40 +133,6 @@ let kReturnNotPermitted: IOReturn = Int32(bitPattern: 0xE00002E2)
 
 // MARK: - Names
 
-func triggerName(usagePage: Int, usage: Int) -> String {
-    switch usagePage {
-    case 0x0C:
-        let consumer: [Int: String] = [
-            0xE9: "Volume Up", 0xEA: "Volume Down", 0xE2: "Mute", 0xCD: "Play/Pause",
-            0xB5: "Next Track", 0xB6: "Previous Track", 0xB7: "Stop", 0xB0: "Play", 0xB1: "Pause",
-            0x221: "Search", 0x223: "Home", 0x224: "Back", 0x225: "Forward", 0x40: "Menu",
-            0x30: "Power", 0x6F: "Brightness Up", 0x70: "Brightness Down", 0xCF: "Voice Command",
-        ]
-        return consumer[usage] ?? "Consumer \(usage)"
-    case 0x07:
-        if (0x04...0x1D).contains(usage) {
-            return String(UnicodeScalar(UInt8(65 + usage - 0x04)))
-        }
-        if (0x1E...0x26).contains(usage) { return String(usage - 0x1D) }
-        let keys: [Int: String] = [
-            0x27: "0", 0x28: "Return", 0x29: "Escape", 0x2A: "Delete", 0x2B: "Tab", 0x2C: "Space",
-            0x4F: "Right Arrow", 0x50: "Left Arrow", 0x51: "Down Arrow", 0x52: "Up Arrow",
-            0x4A: "Home", 0x4D: "End", 0x4B: "Page Up", 0x4E: "Page Down",
-            0x3A: "F1", 0x3B: "F2", 0x3C: "F3", 0x3D: "F4", 0x3E: "F5", 0x3F: "F6",
-            0x40: "F7", 0x41: "F8", 0x42: "F9", 0x43: "F10", 0x44: "F11", 0x45: "F12",
-            0xE0: "Left Control", 0xE1: "Left Shift", 0xE2: "Left Option", 0xE3: "Left Command",
-            0xE4: "Right Control", 0xE5: "Right Shift", 0xE6: "Right Option", 0xE7: "Right Command",
-        ]
-        return keys[usage] ?? "Key \(usage)"
-    case 0x09:
-        return "Button \(usage)"
-    case 0x01:
-        let desktop: [Int: String] = [0x81: "System Power", 0x82: "System Sleep", 0x83: "System Wake"]
-        return desktop[usage] ?? "Desktop \(usage)"
-    default:
-        return "Page \(usagePage) usage \(usage)"
-    }
-}
 
 /// True for HID elements that behave like a button or key, false for axes, wheels,
 /// vendor pages and report padding.
@@ -262,6 +179,23 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
     private var lastFire: [UUID: Date] = [:]
     /// Hold-mode keystrokes whose key-up is still owed, by trigger.
     private var heldKeys: [Trigger: Action] = [:]
+    /// One gesture recognizer per button, and the timer each one asked for.
+    private var recognizers: [Trigger: GestureRecognizer] = [:]
+    private var gestureTimers: [Trigger: DispatchWorkItem] = [:]
+
+    /// How long a second press may follow the first to count as a double press, and how
+    /// long a press must last to count as a long press. Seconds.
+    var gestureWindow: Double {
+        get {
+            let v = defaults.double(forKey: "gestureWindow")
+            return v > 0 ? min(max(v, 0.15), 0.6) : 0.3
+        }
+        set {
+            objectWillChange.send()
+            defaults.set(min(max(newValue, 0.15), 0.6), forKey: "gestureWindow")
+            recognizers.removeAll()
+        }
+    }
 
     private var connectNote: IOBluetoothUserNotification?
     /// Set before registering, because registering calls btConnected at once for every
@@ -660,6 +594,9 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         failedAt.removeAll()
         pressed.removeAll()
         heldKeys.removeAll()
+        recognizers.removeAll()
+        gestureTimers.values.forEach { $0.cancel() }
+        gestureTimers.removeAll()
     }
 
     /// Opens any matching interface not yet opened and forgets ones that left. Called
@@ -785,12 +722,10 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         let usage = Int(IOHIDElementGetUsage(element))
         guard isButtonLike(usagePage: page, usage: usage) else { return }
         let t = Trigger(usagePage: page, usage: usage)
+        let now = ProcessInfo.processInfo.systemUptime
         if IOHIDValueGetIntegerValue(value) == 0 {
-            pressed.remove(t)
-            if let a = heldKeys.removeValue(forKey: t) {
-                postKey(a, down: false)
-                log("\(t.name) released → key up \(a.value)")
-            }
+            guard pressed.remove(t) != nil else { return }
+            feed(t) { $0.up(at: now) }
             return
         }
         guard !pressed.contains(t) else { return } // key repeat
@@ -803,32 +738,73 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
             onLearned?(t)
             return
         }
+        feed(t) { $0.down(at: now) }
+    }
+
+    /// The recognizer for a button, rebuilt whenever its set of bound gestures changes.
+    private func recognizer(for t: Trigger) -> GestureRecognizer {
+        let bound = Set(bindings.filter { $0.trigger == t }.map(\.gesture))
+        if let r = recognizers[t], r.bound == bound { return r }
+        let r = GestureRecognizer(bound: bound, window: gestureWindow, holdDelay: gestureWindow)
+        recognizers[t] = r
+        return r
+    }
+
+    /// Passes one input to the button's recognizer, keeps its new state, runs the events
+    /// it reports and arms the timer it asks for.
+    private func feed(_ t: Trigger, _ input: (inout GestureRecognizer) -> GestureRecognizer.Step) {
+        var r = recognizer(for: t)
+        let step = input(&r)
+        recognizers[t] = r
+        gestureTimers[t]?.cancel()
+        gestureTimers[t] = nil
+        if let deadline = step.deadline {
+            let item = DispatchWorkItem { [weak self] in
+                // A timer can fire a hair early; never report a time before the deadline.
+                self?.feed(t) { $0.timeout(at: max(ProcessInfo.processInfo.systemUptime, deadline)) }
+            }
+            gestureTimers[t] = item
+            let delay = max(0, deadline - ProcessInfo.processInfo.systemUptime)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+        }
+        for event in step.events {
+            switch event {
+            case .begin(let g): begin(g, trigger: t)
+            case .end: end(trigger: t)
+            }
+        }
+    }
+
+    private func begin(_ g: Gesture, trigger t: Trigger) {
         let outcome: String
         var fired = false
-        if let b = bindings.first(where: { $0.trigger == t }) {
-            if let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
+        let name = g == .press ? t.name : "\(t.name) \(g.label.lowercased())"
+        if let b = bindings.first(where: { $0.trigger == t && $0.gesture == g }) {
+            // Some clickers report one press twice; only a plain press can be fooled by that.
+            if g == .press, recognizers[t]?.immediate != false,
+               let last = lastFire[b.id], Date().timeIntervalSince(last) < 0.25 { return }
             lastFire[b.id] = Date()
             if !isApproved(b) {
                 outcome = seal.keyWasReplaced
-                    ? "\(t.name): not run. EucLink was updated; approve this binding once under Bindings."
-                    : "\(t.name): not run. This binding changed outside EucLink; review it under Bindings."
+                    ? "\(name): not run. EucLink was updated; approve this binding once under Bindings."
+                    : "\(name): not run. This binding changed outside EucLink; review it under Bindings."
             } else if b.action.kind == .keystroke && b.action.hold {
                 if AXIsProcessTrusted() {
                     heldKeys[t] = b.action
                     postKey(b.action, down: true)
-                    outcome = "\(t.name) held → key down \(b.action.value)"
+                    outcome = "\(name) held → key down \(b.action.value)"
                     fired = true
                 } else {
-                    outcome = "\(t.name): Accessibility permission missing"
+                    outcome = "\(name): Accessibility permission missing"
                 }
             } else if let err = run(b.action) {
-                outcome = "\(t.name): \(err)"
+                outcome = "\(name): \(err)"
             } else {
-                outcome = "\(t.name) → \(b.action.name)"
+                outcome = "\(name) → \(b.action.name)"
                 fired = true
             }
         } else {
-            outcome = "Unbound press: \(t.name)"
+            outcome = "Unbound press: \(name)"
         }
         let now = Date()
         if fired { lastFired = (now, outcome) }
@@ -838,6 +814,13 @@ final class Monitor: NSObject, ObservableObject, CBCentralManagerDelegate {
         if !shadowed { lastOutcome = (now, outcome) }
         log(outcome)
         refreshSoon()
+    }
+
+    private func end(trigger t: Trigger) {
+        if let a = heldKeys.removeValue(forKey: t) {
+            postKey(a, down: false)
+            log("\(t.name) released → key up \(a.value)")
+        }
     }
 
     // MARK: actions

@@ -328,6 +328,28 @@ Open it from the menu bar dot with **Open EucLink**.
 | URL | a link | web chats, `shortcuts://`, app links |
 | Command | a shell command | scripts |
 
+### Gestures: press, double press, long press
+
+One button can do up to three things. For example, with a dictation app that starts and stops
+on the same shortcut:
+
+| Gesture | Action | What it does |
+|---|---|---|
+| Press | Keystroke `fn Space`, press | Start dictation, then stop and paste |
+| Double press | Keystroke `⌘ Return`, press | Send the message |
+| Long press | Any action | For example, open your chat app |
+
+To add one:
+
+1. Open **EucLink > Bindings** and click **Add Binding**.
+2. Press the same button. EucLink adds the next free gesture: double press, then long press.
+3. Choose its action, and change the gesture under **Gesture** if you like.
+
+A button with only a press acts the moment you press it. Once it also has a double or long
+press, EucLink waits briefly, 0.3 seconds by default, to tell them apart, so a single press
+runs a moment later. Set the wait under **Double and long press timing** on the Bindings page.
+For push-to-talk on such a button, press, pause briefly, then talk.
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -477,7 +499,6 @@ shasum -a 256 ~/Downloads/EucLink-*.dmg
 ## Limits
 
 - The first press after a long sleep may only wake the button. That is the button's firmware.
-- Double press and long press are not told apart yet.
 - The app is not notarized. Building it yourself avoids the Gatekeeper warning.
 - The downloadable app is for Apple silicon. On an Intel Mac, build it yourself.
 

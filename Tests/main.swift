@@ -1,6 +1,6 @@
-// Tests for keystroke parsing and naming, what the uninstaller removes, and version numbers. Built and
+// Tests for keystroke parsing and naming, what the uninstaller removes, version numbers and gestures. Built and
 // run by `./build.sh ci`, which compiles this file with Sources/Keys.swift and
-// Sources/Leftovers.swift and Sources/Version.swift. No Xcode project needed.
+// Sources/Leftovers.swift, Sources/Version.swift and Sources/Gestures.swift. No Xcode project needed.
 
 import AppKit
 
@@ -90,6 +90,60 @@ check(Version.latestTag(fromReleaseJSON: Data("{\"tag_name\":\"v0.6.0\",\"name\"
       "the tag is read from GitHub's reply")
 check(Version.latestTag(fromReleaseJSON: Data("{\"tag_name\":\"nightly\"}".utf8)) == nil, "an odd tag is ignored")
 check(Version.latestTag(fromReleaseJSON: Data("not json".utf8)) == nil, "a broken reply is ignored")
+
+// Gestures. Times are in seconds; the window and the hold delay are both 0.3.
+typealias G = GestureRecognizer
+func run(_ bound: Set<Gesture>, _ inputs: [(String, Double)]) -> [G.Event] {
+    var r = G(bound: bound, window: 0.3, holdDelay: 0.3)
+    var out: [G.Event] = []
+    var deadline: Double?
+    func fireTimers(until t: Double) {
+        while let d = deadline, d <= t {
+            let s = r.timeout(at: d)
+            out += s.events
+            deadline = s.deadline
+        }
+    }
+    for (kind, t) in inputs {
+        fireTimers(until: t)   // a timer due before this input fires first
+        let s = kind == "down" ? r.down(at: t) : r.up(at: t)
+        out += s.events
+        deadline = s.deadline
+    }
+    fireTimers(until: .infinity)
+    return out
+}
+// Only a press bound: instant, held until release, exactly as before gestures.
+check(run([.press], [("down", 0), ("up", 1.0)]) == [.begin(.press), .end(.press)], "a lone press is instant and held")
+check(G(bound: [.press]).immediate, "a lone press needs no waiting")
+// Press and double press.
+let pd: Set<Gesture> = [.press, .doublePress]
+check(run(pd, [("down", 0), ("up", 0.1)]) == [.begin(.press), .end(.press)], "a single tap is a press after the window")
+check(run(pd, [("down", 0), ("up", 0.1), ("down", 0.25), ("up", 0.35)]) == [.begin(.doublePress), .end(.doublePress)],
+      "two quick taps are a double press")
+check(run(pd, [("down", 0), ("up", 0.1), ("down", 0.5), ("up", 0.6)])
+      == [.begin(.press), .end(.press), .begin(.press), .end(.press)], "two slow taps are two presses")
+check(run(pd, [("down", 0), ("up", 0.1), ("down", 0.12), ("up", 0.13)]) == [.begin(.press), .end(.press)],
+      "a press reported twice is one press")
+check(run(pd, [("down", 0), ("up", 2.0)]) == [.begin(.press), .end(.press)], "holding still works as a held press")
+// Long press.
+let pl: Set<Gesture> = [.press, .longPress]
+check(run(pl, [("down", 0), ("up", 0.1)]) == [.begin(.press), .end(.press)], "a quick press is a press")
+check(run(pl, [("down", 0), ("up", 1.5)]) == [.begin(.longPress), .end(.longPress)], "holding is a long press")
+// All three.
+let all3 = Set(Gesture.allCases)
+check(run(all3, [("down", 0), ("up", 0.1), ("down", 0.2), ("up", 0.3)]) == [.begin(.doublePress), .end(.doublePress)],
+      "with all three, two taps are a double press")
+check(run(all3, [("down", 0), ("up", 1.0)]) == [.begin(.longPress), .end(.longPress)], "with all three, holding is a long press")
+// Stored settings from before gestures still decode, and a press binding encodes as before.
+let oldJSON = Data(#"{"action":{"flags":0,"hold":true,"keyCode":49,"kind":"keystroke","value":"fn Space"},"id":"0B1E7A0C-6F5A-4C0B-9C7E-1D2E3F405162","trigger":{"usage":233,"usagePage":12}}"#.utf8)
+if let old = try? JSONDecoder().decode(ButtonBinding.self, from: oldJSON) {
+    check(old.gesture == .press, "an old binding becomes a press binding")
+    let enc = JSONEncoder(); enc.outputFormatting = [.sortedKeys]
+    check((try? enc.encode(old)) == oldJSON, "a press binding is written exactly as before, so its seal still matches")
+} else {
+    check(false, "an old binding decodes")
+}
 
 print("\(count - failures) of \(count) checks passed")
 exit(failures == 0 ? 0 : 1)

@@ -68,7 +68,7 @@ if [ "$MODE" = "ci" ]; then
   echo "Compiling tests…"
   TESTS="$(mktemp -d)"
   swiftc -target "$(uname -m)-apple-macos13.0" -framework AppKit \
-    Sources/Keys.swift Sources/Leftovers.swift Sources/Version.swift Tests/main.swift -o "$TESTS/tests"
+    Sources/Keys.swift Sources/Leftovers.swift Sources/Version.swift Sources/Gestures.swift Sources/Model.swift Tests/main.swift -o "$TESTS/tests"
   "$TESTS/tests"
   rm -rf "$TESTS"
 

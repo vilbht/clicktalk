@@ -390,6 +390,20 @@ final class AppState: ObservableObject {
         monitor.bindings = all
     }
 
+    /// Gives a binding another gesture. If another binding on the same button has that
+    /// gesture, the two swap, so each gesture keeps exactly one binding.
+    func setGesture(_ id: UUID, _ g: Gesture) {
+        var all = monitor.bindings
+        guard let i = all.firstIndex(where: { $0.id == id }) else { return }
+        let old = all[i].gesture
+        guard old != g else { return }
+        if let j = all.firstIndex(where: { $0.trigger == all[i].trigger && $0.gesture == g && $0.id != id }) {
+            all[j].gesture = old
+        }
+        all[i].gesture = g
+        monitor.bindings = all
+    }
+
     func removeBinding(_ id: UUID) {
         monitor.bindings.removeAll { $0.id == id }
         if editingID == id { editingID = nil }
@@ -416,13 +430,16 @@ final class AppState: ObservableObject {
             guard let self = self else { return }
             self.isLearningNew = false
             var all = self.monitor.bindings
-            if let existing = all.first(where: { $0.trigger == t }) {
-                self.editingID = existing.id
-            } else {
-                let b = ButtonBinding(trigger: t)
+            // The same button again gets its next free gesture: press, then double press,
+            // then long press. With all three taken, the press binding opens.
+            let used = Set(all.filter { $0.trigger == t }.map(\.gesture))
+            if let free = Gesture.allCases.first(where: { !used.contains($0) }) {
+                let b = ButtonBinding(trigger: t, gesture: free)
                 all.append(b)
                 self.monitor.bindings = all
                 self.editingID = b.id
+            } else if let existing = all.first(where: { $0.trigger == t && $0.gesture == .press }) {
+                self.editingID = existing.id
             }
         }
         monitor.learning = true
@@ -467,11 +484,12 @@ final class AppState: ObservableObject {
             var all = self.monitor.bindings
             if let id = self.guideBinding?.id, let i = all.firstIndex(where: { $0.id == id }) {
                 all[i].trigger = t
-                all.removeAll { $0.trigger == t && $0.id != id }
+                let g = all[i].gesture
+                all.removeAll { $0.trigger == t && $0.gesture == g && $0.id != id }
                 self.guideBindingID = id
             } else {
                 let b = ButtonBinding(trigger: t)
-                all.removeAll { $0.trigger == t }
+                all.removeAll { $0.trigger == t && $0.gesture == .press }
                 all.append(b)
                 self.guideBindingID = b.id
             }
